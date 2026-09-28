@@ -156,6 +156,22 @@ cursor: default;
 border-bottom: 1px solid var(--border-dark);
 }
 
+.tool-item-btn {
+color: var(--text-primary);
+cursor: pointer;
+}
+
+.tool-item-btn:hover {
+background: var(--btn-bg);
+}
+
+.tool-item-btn.tool-item-disabled {
+color: var(--text-muted);
+opacity: 0.4;
+cursor: default;
+pointer-events: none;
+}
+
 #filters-items {
 padding: 8px;
 display: flex;
@@ -321,6 +337,16 @@ overflow: hidden;
 width: 480px;
 min-width: 400px;
 min-height: 340px;
+}
+
+/* a janela de convolução precisa caber o maior kernel possível (9x9)
+   sem que a grade precise de scroll nem vaze da coluna; largura maior
+   que a fw-wide padrão, calculada a partir do tamanho de célula do
+   kernel (ver .fw-kernel-cell) + a coluna fixa da imagem + os espaçamentos */
+.filter-window.fw-convolution {
+width: 620px;
+min-width: 600px;
+min-height: 380px;
 }
 
 .filter-window .fw-head {
@@ -662,4 +688,185 @@ padding: 2px 4px;
 .filter-window .fw-point-remove:hover:not(:disabled) {
 color: #ff5555;
 border-color: #ff5555;
+}
+
+.filter-window .fw-kernel-grid {
+display: grid;
+gap: 3px;
+justify-content: start;
+max-width: 100%;
+overflow-x: auto;
+padding-bottom: 2px;
+}
+
+.filter-window .fw-kernel-cell {
+width: 30px;
+height: 26px;
+background: #222222;
+border: 1px solid var(--border-dark);
+color: var(--text-primary);
+text-align: center;
+font-size: 11px;
+font-family: inherit;
+padding: 0 2px;
+}
+
+.filter-window .fw-kernel-cell:focus-visible {
+outline: 1px solid var(--accent);
+outline-offset: -1px;
+}
+
+.filter-window .fw-kernel-presets {
+display: flex;
+flex-wrap: wrap;
+gap: 4px;
+}
+
+.filter-window .fw-kernel-preset-btn {
+font-family: inherit;
+font-size: 11px;
+padding: 3px 8px;
+background: var(--btn-bg);
+border: 1px solid var(--border-dark);
+color: var(--text-primary);
+cursor: pointer;
+}
+
+.filter-window .fw-kernel-preset-btn:hover {
+background: var(--btn-hover);
+}
+
+.filter-window .fw-kernel-footer {
+display: flex;
+justify-content: space-between;
+align-items: center;
+font-size: 11px;
+color: var(--text-muted);
+}
+
+.filter-window .fw-kernel-footer input[type="number"] {
+width: 60px;
+background: #222222;
+border: 1px solid var(--border-dark);
+color: var(--text-primary);
+text-align: right;
+font-size: 11px;
+padding: 2px 4px;
+font-family: inherit;
+}
+
+.filter-window .fw-field-row {
+display: flex;
+align-items: center;
+gap: 8px;
+}
+
+.filter-window .fw-field-row label {
+font-size: 11px;
+color: var(--text-primary);
+flex-shrink: 0;
+width: 70px;
+}
+
+.filter-window .fw-field-row input[type="number"] {
+flex: 1;
+width: auto;
+background: #222222;
+border: 1px solid var(--border-dark);
+color: var(--text-primary);
+text-align: right;
+font-size: 11px;
+padding: 4px;
+font-family: inherit;
+}
+
+.filter-window .fw-checkbox-row {
+display: flex;
+align-items: center;
+gap: 6px;
+font-size: 11px;
+color: var(--text-primary);
+}
+
+.filter-window .fw-checkbox-row input[type="checkbox"] {
+accent-color: var(--accent);
+}
+
+.filter-window .fw-radio-row {
+display: flex;
+gap: 14px;
+font-size: 11px;
+color: var(--text-primary);
+}
+
+.filter-window .fw-radio-row label {
+display: flex;
+align-items: center;
+gap: 4px;
+cursor: pointer;
+}
+
+.filter-window .fw-radio-row input[type="radio"] {
+accent-color: var(--accent);
+}
+
+.fw-rotate-preview-wrap {
+position: relative;
+width: 100%;
+height: 100%;
+display: flex;
+align-items: center;
+justify-content: center;
+overflow: hidden;
+}
+
+.fw-rotate-preview-wrap img {
+max-width: 100%;
+max-height: 100%;
+width: auto;
+height: auto;
+display: block;
+object-fit: contain;
+}
+
+.fw-pivot-marker {
+position: absolute;
+width: 16px;
+height: 16px;
+margin-left: -8px;
+margin-top: -8px;
+border-radius: 50%;
+background: var(--accent);
+border: 2px solid #fff;
+box-shadow: 0 0 0 1px #000, 0 2px 6px rgba(0, 0, 0, 0.6);
+cursor: grab;
+z-index: 2;
+touch-action: none;
+}
+
+.fw-pivot-marker::before,
+.fw-pivot-marker::after {
+content: "";
+position: absolute;
+background: #fff;
+}
+
+.fw-pivot-marker::before {
+left: 50%;
+top: -6px;
+width: 1px;
+height: 6px;
+transform: translateX(-50%);
+}
+
+.fw-pivot-marker::after {
+left: -6px;
+top: 50%;
+width: 6px;
+height: 1px;
+transform: translateY(-50%);
+}
+
+.fw-pivot-marker.dragging {
+cursor: grabbing;
 }
