@@ -40,6 +40,8 @@
                 <div class="tool-item">Selecionar</div>
                 <div class="tool-item">Cortar</div>
                 <div class="tool-item">Desenhar</div>
+                <div class="tool-item tool-item-btn tool-item-disabled" id="tool-scale">Escala</div>
+                <div class="tool-item tool-item-btn tool-item-disabled" id="tool-rotate">Rotação</div>
         </aside>
         
 
@@ -58,6 +60,13 @@
                 <button class="filter-btn" id="histogram" disabled>Histograma</button>
                 <button class="filter-btn" id="histogram-eq" disabled>Equalização de histograma</button>
                 <button class="filter-btn" id="esteganography" disabled>Esteganografia</button>
+                <button class="filter-btn" id="smoothing" disabled>Suavização (Média/Gaussiano)</button>
+                <button class="filter-btn" id="median" disabled>Filtragem pela mediana</button>
+                <button class="filter-btn" id="laplacian-sharpen" disabled>Aguçamento Laplaciano</button>
+                <button class="filter-btn" id="high-boost" disabled>Aguçamento High-Boost</button>
+                <button class="filter-btn" id="sobel" disabled>Sobel (X / Y)</button>
+                <button class="filter-btn" id="sobel-magnitude" disabled>Detecção de bordas (gradiente)</button>
+                <button class="filter-btn" id="convolution" disabled>Convolução</button>
             </div>
             <div class="section-gap"></div>
 
@@ -86,4 +95,4 @@
 
         <script src="script.js"></script>
     </body>
-</html>
+</html>>
