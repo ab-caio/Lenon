@@ -12,9 +12,8 @@
 
         <!-- ----------------------------------------------->
          <link rel="stylesheet" href="styles.css">
-
-    <base target="_blank">
-</head>
+         <link rel="icon" href="data:,">
+    </head>
     <body>
 
 
@@ -53,7 +52,7 @@
             <div id="filters-items">
                 <div class="panel-title">FILTROS</div>
                 <button class="filter-btn" id="negative" disabled>Negativo</button>
-                <button class="filter-btn" id="threshold"disabled>Limiarização</button>
+                <button class="filter-btn" id="threshold" disabled>Limiarização</button>
                 <button class="filter-btn" id="brightness" disabled>Brilho</button>
                 <button class="filter-btn" id="gama" disabled>Correção de gama</button>
                 <button class="filter-btn" id="linear-func" disabled>Linear</button>
@@ -67,6 +66,8 @@
                 <button class="filter-btn" id="sobel" disabled>Sobel (X / Y)</button>
                 <button class="filter-btn" id="sobel-magnitude" disabled>Detecção de bordas (gradiente)</button>
                 <button class="filter-btn" id="convolution" disabled>Convolução</button>
+                <button class="filter-btn" id="fourier" disabled>Domínio da Frequência (FFT)</button>
+                <button class="filter-btn" id="color-processing" disabled>Processamento de Cores</button>
             </div>
             <div class="section-gap"></div>
 
@@ -93,6 +94,6 @@
 
 
 
-        <script src="script.js"></script>
+        <script type="module" src="script.js?v=4"></script>
     </body>
-</html>>
+</html>
