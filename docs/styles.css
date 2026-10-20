@@ -266,11 +266,28 @@ background: transparent;
 color: var(--text-muted);
 cursor: pointer;
 font-size: 12px;
-padding: 2px 6px;
+padding: 2px 4px;
+line-height: 1;
 }
 
-.layer-row button:hover {
+.layer-row .remove-btn:hover {
 color: #ff5555;
+}
+
+.layer-row .toggle-btn {
+font-size: 11px;
+}
+
+.layer-row .toggle-btn:hover {
+color: var(--accent);
+}
+
+.layer-row.disabled {
+opacity: 0.45;
+}
+
+.layer-row.disabled .name {
+text-decoration: line-through;
 }
 
 .layers-empty {
@@ -323,6 +340,8 @@ position: fixed;
 width: 280px;
 min-width: 240px;
 min-height: 280px;
+max-width: calc(100vw - 20px);
+max-height: calc(100vh - 20px);
 background: var(--panel-bg);
 border: 1px solid var(--border-light);
 box-shadow: 0 8px 24px rgba(0, 0, 0, 0.7);
@@ -334,8 +353,8 @@ overflow: hidden;
 }
 
 .filter-window.fw-wide {
-width: 480px;
-min-width: 400px;
+width: 540px;
+min-width: 460px;
 min-height: 340px;
 }
 
@@ -345,7 +364,7 @@ min-height: 340px;
    kernel (ver .fw-kernel-cell) + a coluna fixa da imagem + os espaçamentos */
 .filter-window.fw-convolution {
 width: 620px;
-min-width: 600px;
+min-width: 580px;
 min-height: 380px;
 }
 
@@ -364,6 +383,7 @@ justify-content: space-between;
 align-items: center;
 user-select: none;
 flex-shrink: 0;
+touch-action: none;
 }
 
 .filter-window .fw-close {
@@ -389,8 +409,12 @@ overflow: hidden;
 }
 
 .filter-window .fw-body-split {
+display: flex;
 flex-direction: row;
 gap: 16px;
+flex: 1;
+min-height: 0;
+align-items: stretch;
 }
 
 .filter-window .fw-preview {
@@ -561,14 +585,16 @@ display: flex;
 flex-direction: column;
 flex: 1 1 0;
 min-width: 0;
-gap: 12px;
+gap: 10px;
+overflow-y: auto;
+padding-right: 2px;
 }
 
 .filter-window .fw-col-curve {
 display: flex;
 flex-direction: column;
-width: 180px;
-flex: 0 0 180px;
+width: 200px;
+flex: 0 0 200px;
 }
 
 .filter-window .fw-col-image {
@@ -576,28 +602,32 @@ display: flex;
 flex-direction: column;
 width: 240px;
 flex: 0 0 240px;
+min-height: 0;
 }
 
 .filter-window .fw-col-image .fw-preview {
 width: 100%;
 height: 100%;
+min-height: 200px;
 }
 
 .filter-window .fw-curve {
 position: relative;
-width: 100%;
-aspect-ratio: 1;
-margin-bottom: 8px;
+width: 200px;
+height: 200px;
+margin-bottom: 6px;
 border: 1px solid var(--border-light);
-background: #1a1a1a;
+background: #141414;
 overflow: hidden;
 flex-shrink: 0;
+align-self: center;
 }
 
 .filter-window .fw-curve canvas {
 display: block;
 width: 100%;
 height: 100%;
+cursor: crosshair;
 }
 
 .filter-window .fw-curve-handle {
