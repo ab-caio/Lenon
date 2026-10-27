@@ -1,10 +1,10 @@
 // O "?v=" força o navegador a carregar a versão atual dos módulos (evita cache antigo)
-import * as spacial from "./modules/spacial.js?v=4";
-import * as frequency from "./modules/frequency.js?v=4";
-import { createImage, cloneImage, clamp } from "./modules/auxiliary.js?v=4";
+import * as spacial from "./modules/spatial.js?v=5";
+import * as frequency from "./modules/frequency.js?v=5";
+import { createImage, cloneImage, clamp, EXPORT_FORMATS, encodeImage } from "./modules/auxiliary.js?v=5";
 
-if (typeof spacial.getRotationLayout !== "function") {
-    alert("modules/spacial.js está desatualizado (sem a rotação com canvas ampliado). Substitua o arquivo e recarregue com Ctrl+F5.");
+if (typeof spatial.getRotationLayout !== "function") {
+    alert("modules/spatial.js está desatualizado (sem a rotação com canvas ampliado). Substitua o arquivo e recarregue com Ctrl+F5.");
 }
 
 // ===============================================================================
@@ -56,6 +56,50 @@ const toolScale = document.getElementById("tool-scale");
 const toolRotate = document.getElementById("tool-rotate");
 
 // ===============================================================================
+// BARRAS LATERAIS COLAPSÁVEIS (TELAS PEQUENAS)
+// ===============================================================================
+
+// Em telas estreitas (ver @media em styles.css) as barras viram gavetas abertas pelos botões do cabeçalho
+const smallScreen = window.matchMedia
+    ? window.matchMedia("(max-width: 900px)")
+    : { matches: false, addEventListener() {} };
+const navButtons = {
+    tools: document.getElementById("toggle-tools"),
+    filters: document.getElementById("toggle-filters")
+};
+
+function openDrawer(name) {   // "tools", "filters" ou null (fecha tudo)
+    document.body.classList.toggle("tools-open", name === "tools");
+    document.body.classList.toggle("filters-open", name === "filters");
+    Object.entries(navButtons).forEach(([key, btn]) => btn.setAttribute("aria-expanded", String(key === name)));
+}
+
+Object.entries(navButtons).forEach(([key, btn]) => {
+    btn.addEventListener("click", () => {
+        openDrawer(document.body.classList.contains(`${key}-open`) ? null : key);
+    });
+});
+
+document.getElementById("backdrop").addEventListener("click", () => openDrawer(null));
+document.addEventListener("keydown", (e) => { if (e.key === "Escape") openDrawer(null); });
+smallScreen.addEventListener("change", () => openDrawer(null));
+
+// Ao escolher um filtro ou ferramenta a gaveta se fecha, deixando a janela do filtro visível
+["tools", "filters"].forEach((id) => {
+    document.getElementById(id).addEventListener("click", (e) => {
+        if (smallScreen.matches && e.target.closest(".filter-btn, .tool-item-btn")) openDrawer(null);
+    });
+});
+
+// Gavetas começam logo abaixo do cabeçalho, que pode quebrar em duas linhas
+const headerEl = document.querySelector("header");
+if (typeof ResizeObserver !== "undefined") {
+    new ResizeObserver(() => {
+        document.documentElement.style.setProperty("--header-h", `${headerEl.offsetHeight}px`);
+    }).observe(headerEl);
+}
+
+// ===============================================================================
 // UTILITÁRIOS E GERENCIAMENTO DE IMAGEM
 // ===============================================================================
 
@@ -102,7 +146,7 @@ function makePreviewClone(img, maxDim = 320) {
         return cloneImage(img);
     }
     const scale = Math.min(maxDim / w, maxDim / h);
-    return spacial.scaleImage(img, scale, scale, 'nearest');
+    return spatial.scaleImage(img, scale, scale, 'nearest');
 }
 
 // Carregamento de imagem do disco
@@ -133,20 +177,85 @@ imgInput.addEventListener("change", async (e) => {
     }
 });
 
-// Salvar imagem resultante
-saveBtn.addEventListener("click", async () => {
+// Salvar imagem resultante (PNG, JPEG, JPG ou BMP)
+saveBtn.addEventListener("click", () => {
     if (!currentImage) return;
-    try {
-        const url = await imageToDataUrl(currentImage);
-        const a = document.createElement("a");
-        a.href = url;
-        a.download = "lenon_processado.png";
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-    } catch (err) {
-        console.error("Erro ao salvar a imagem:", err);
-    }
+
+    const hints = {
+        png: "Sem perdas; mantém a transparência.",
+        jpeg: "Com perdas e sem transparência: áreas transparentes ficam brancas.",
+        jpg: "Com perdas e sem transparência: áreas transparentes ficam brancas.",
+        bmp: "Sem compressão (arquivo grande) e sem transparência: áreas transparentes ficam brancas."
+    };
+
+    createWindow({
+        title: "Salvar imagem",
+        applyLabel: "Salvar",
+        bodyHtml: `
+            <div class="fw-controls">
+                <div class="fw-control-header"><label for="save-name">Nome do arquivo</label></div>
+                <input type="text" class="fw-text" id="save-name" value="lenon_processado" autocomplete="off">
+                <div class="fw-radio-row" style="margin-top: 6px;">
+                    ${Object.entries(EXPORT_FORMATS).map(([key, f]) => `
+                        <label><input type="radio" name="save-format" value="${key}" ${key === "png" ? "checked" : ""}> ${f.label}</label>
+                    `).join("")}
+                </div>
+                <div id="save-quality-box" style="display: none;">
+                    <div class="fw-control-header">
+                        <label for="save-quality">Qualidade JPEG</label>
+                        <input type="number" class="fw-value" id="save-quality-num" min="1" max="100" value="92">
+                    </div>
+                    <input type="range" id="save-quality" min="1" max="100" value="92">
+                </div>
+                <span class="fw-curve-hint" id="save-hint">${hints.png}</span>
+            </div>
+        `,
+        onInit: (win) => {
+            const qualityBox = win.querySelector("#save-quality-box");
+            const qualityRange = win.querySelector("#save-quality");
+            const qualityNum = win.querySelector("#save-quality-num");
+
+            win.querySelectorAll("input[name='save-format']").forEach((radio) => {
+                radio.addEventListener("change", () => {
+                    qualityBox.style.display = EXPORT_FORMATS[radio.value].lossy ? "block" : "none";
+                    win.querySelector("#save-hint").textContent = hints[radio.value];
+                });
+            });
+
+            qualityRange.addEventListener("input", () => { qualityNum.value = qualityRange.value; });
+            qualityNum.addEventListener("change", () => {
+                const value = Math.max(1, Math.min(100, parseInt(qualityNum.value, 10) || 92));
+                qualityNum.value = value;
+                qualityRange.value = value;
+            });
+        },
+        onApply: async (win) => {
+            const formatKey = win.querySelector("input[name='save-format']:checked").value;
+            const format = EXPORT_FORMATS[formatKey];
+            const quality = parseInt(win.querySelector("#save-quality").value, 10);
+
+            // Nome sem caracteres inválidos e sem extensão de imagem repetida
+            let name = win.querySelector("#save-name").value.trim()
+                .replace(/[\\/:*?"<>|]+/g, "_")
+                .replace(/\.(png|jpe?g|bmp)$/i, "");
+            if (!name) name = "lenon_processado";
+
+            try {
+                const bytes = await encodeImage(currentImage, formatKey, quality);
+                const url = URL.createObjectURL(new Blob([bytes], { type: format.mime }));
+                const a = document.createElement("a");
+                a.href = url;
+                a.download = `${name}.${format.ext}`;
+                document.body.appendChild(a);
+                a.click();
+                document.body.removeChild(a);
+                setTimeout(() => URL.revokeObjectURL(url), 10000);
+            } catch (err) {
+                console.error("Erro ao salvar a imagem:", err);
+                alert("Não foi possível salvar a imagem neste formato.");
+            }
+        }
+    });
 });
 
 // ===============================================================================
@@ -225,46 +334,46 @@ async function recomputePipeline() {
 async function executeFilter(targetImg, type, params) {
     switch (type) {
         case "negative":
-            return await spacial.inversion(targetImg);
+            return await spatial.inversion(targetImg);
         case "threshold":
-            return await spacial.threshold(targetImg, params.limit);
+            return await spatial.threshold(targetImg, params.limit);
         case "brightness":
-            return await spacial.brightness(targetImg, params.value);
+            return await spatial.brightness(targetImg, params.value);
         case "gama":
-            return await spacial.gammaCorrection(targetImg, params.gamma, params.constant);
+            return await spatial.gammaCorrection(targetImg, params.gamma, params.constant);
         case "linear":
-            return await spacial.pieceWise(targetImg, params.rPoints, params.sPoints);
+            return await spatial.pieceWise(targetImg, params.rPoints, params.sPoints);
         case "histogram-eq":
             if (params.mode === "hsi") {
-                return spacial.equalizeHistogramHSI(targetImg);
+                return spatial.equalizeHistogramHSI(targetImg);
             }
-            return await spacial.equalizeHistogram(targetImg);
+            return await spatial.equalizeHistogram(targetImg);
         case "steganography":
-            return spacial.encode(targetImg, params.message);
+            return spatial.encode(targetImg, params.message);
         case "smoothing":
             if (params.method === "gaussian") {
-                return spacial.gaussianBlur(targetImg, params.size, params.sigma);
+                return spatial.gaussianBlur(targetImg, params.size, params.sigma);
             }
-            return spacial.boxBlur(targetImg, params.size);
+            return spatial.boxBlur(targetImg, params.size);
         case "median":
-            return spacial.medianFilter(targetImg, params.size);
+            return spatial.medianFilter(targetImg, params.size);
         case "laplacian":
-            return spacial.laplacianFilter(targetImg, params);
+            return spatial.laplacianFilter(targetImg, params);
         case "high-boost":
-            return spacial.highBoostFilter(targetImg, params.A, params.size);
+            return spatial.highBoostFilter(targetImg, params.A, params.size);
         case "sobel":
             if (params.axis === "y") {
-                return spacial.sobelY(targetImg, { normalize: true });
+                return spatial.sobelY(targetImg, { normalize: true });
             }
-            return spacial.sobelX(targetImg, { normalize: true });
+            return spatial.sobelX(targetImg, { normalize: true });
         case "sobel-magnitude":
-            return spacial.sobelMagnitude(targetImg, { normalize: true });
+            return spatial.sobelMagnitude(targetImg, { normalize: true });
         case "convolution":
-            return spacial.convolve2D(targetImg, params.kernel, params.options);
+            return spatial.convolve2D(targetImg, params.kernel, params.options);
         case "scale":
-            return spacial.scaleImage(targetImg, params.scaleX, params.scaleY, params.interpolation);
+            return spatial.scaleImage(targetImg, params.scaleX, params.scaleY, params.interpolation);
         case "rotate":
-            return spacial.rotateImage(targetImg, params.angle, params.pivotX, params.pivotY, params.interpolation);
+            return spatial.rotateImage(targetImg, params.angle, params.pivotX, params.pivotY, params.interpolation);
         case "fourier": {
             const fftRes = frequency.fft2D(targetImg);
             if (params.mask) {
@@ -273,17 +382,17 @@ async function executeFilter(targetImg, type, params) {
             return frequency.ifft2D(fftRes);
         }
         case "sepia":
-            return spacial.sepia(targetImg);
+            return spatial.sepia(targetImg);
         case "grayscale":
-            return spacial.convertToGrayscale(targetImg, params.method);
+            return spatial.convertToGrayscale(targetImg, params.method);
         case "color-inversion":
-            return spacial.colorInversion(targetImg);
+            return spatial.colorInversion(targetImg);
         case "adjust-hsi":
-            return spacial.adjustHSI(targetImg, params.deltaH, params.deltaS, params.deltaI);
+            return spatial.adjustHSI(targetImg, params.deltaH, params.deltaS, params.deltaI);
         case "adjust-channels":
-            return spacial.adjustColorChannels(targetImg, params.deltaR, params.deltaG, params.deltaB);
+            return spatial.adjustColorChannels(targetImg, params.deltaR, params.deltaG, params.deltaB);
         case "chroma-key":
-            return spacial.chromaKey(targetImg, params.bgImg, params.targetColor, params.tolerance);
+            return spatial.chromaKey(targetImg, params.bgImg, params.targetColor, params.tolerance);
         default:
             return targetImg;
     }
@@ -313,6 +422,14 @@ function toggleLayer(id) {
     }
 }
 
+// Move a camada de posição e recalcula o pipeline (usado pelo arrastar-e-soltar e pelas setas)
+function moveLayer(from, to) {
+    if (from === to || from < 0 || to < 0 || from >= layers.length || to >= layers.length) return;
+    const moved = layers.splice(from, 1)[0];
+    layers.splice(to, 0, moved);
+    recomputePipeline();
+}
+
 function renderLayersList() {
     layersList.innerHTML = "";
 
@@ -334,8 +451,20 @@ function renderLayersList() {
             <button class="toggle-btn" title="${layer.enabled ? "Ocultar camada" : "Exibir camada"}">${layer.enabled ? "👁" : "🚫"}</button>
             <span class="num">${idx + 1}</span>
             <span class="name" title="${layer.name}">${layer.name}</span>
+            <button class="move-btn move-up" title="Subir camada" ${idx === 0 ? "disabled" : ""}>▲</button>
+            <button class="move-btn move-down" title="Descer camada" ${idx === layers.length - 1 ? "disabled" : ""}>▼</button>
             <button class="remove-btn" title="Remover camada">✕</button>
         `;
+
+        row.querySelector(".move-up").addEventListener("click", (e) => {
+            e.stopPropagation();
+            moveLayer(idx, idx - 1);
+        });
+
+        row.querySelector(".move-down").addEventListener("click", (e) => {
+            e.stopPropagation();
+            moveLayer(idx, idx + 1);
+        });
 
         row.querySelector(".toggle-btn").addEventListener("click", (e) => {
             e.stopPropagation();
@@ -373,12 +502,7 @@ function renderLayersList() {
             e.preventDefault();
             row.classList.remove("drag-over");
             const fromIndex = parseInt(e.dataTransfer.getData("text/plain"), 10);
-            const toIndex = idx;
-            if (!isNaN(fromIndex) && fromIndex !== toIndex) {
-                const moved = layers.splice(fromIndex, 1)[0];
-                layers.splice(toIndex, 0, moved);
-                recomputePipeline();
-            }
+            if (!isNaN(fromIndex)) moveLayer(fromIndex, idx);
         });
 
         layersList.appendChild(row);
@@ -430,7 +554,7 @@ function splitLayout(optionsHtml) {
     `;
 }
 
-function createWindow({ title, extraClass = "", bodyHtml, onInit, onApply }) {
+function createWindow({ title, extraClass = "", applyLabel = "Aplicar", bodyHtml, onInit, onApply }) {
     closeActiveWindow();
 
     const win = document.createElement("div");
@@ -443,7 +567,7 @@ function createWindow({ title, extraClass = "", bodyHtml, onInit, onApply }) {
         </div>
         <div class="fw-body">
             ${bodyHtml}
-            ${onApply ? `<button class="fw-apply">Aplicar</button>` : ""}
+            ${onApply ? `<button class="fw-apply">${applyLabel}</button>` : ""}
         </div>
     `;
 
@@ -534,17 +658,33 @@ function bindGraph(canvas, { onDown, onDrag, onRightClick }) {
     canvas.style.touchAction = "none";
     canvas.addEventListener("contextmenu", (e) => e.preventDefault());
 
+    // No toque não existe botão direito: manter o dedo parado por 600 ms equivale a ele
+    let pressTimer = null;
+    let pressX = 0;
+    let pressY = 0;
+    const cancelPress = () => { clearTimeout(pressTimer); pressTimer = null; };
+
     canvas.addEventListener("pointerdown", (e) => {
         e.preventDefault();
         if (e.button === 0) {
             dragging = onDown(locate(e)) !== false;
             if (dragging) canvas.setPointerCapture(e.pointerId);
+
+            if (e.pointerType !== "mouse" && onRightClick) {
+                pressX = e.clientX;
+                pressY = e.clientY;
+                pressTimer = setTimeout(() => {
+                    dragging = false;
+                    onRightClick(locate({ clientX: pressX, clientY: pressY }));
+                }, 600);
+            }
         } else if (e.button === 2 && onRightClick) {
             onRightClick(locate(e));
         }
     });
 
     canvas.addEventListener("pointermove", (e) => {
+        if (pressTimer && Math.hypot(e.clientX - pressX, e.clientY - pressY) > 8) cancelPress();
         if (!dragging) return;
         if (!(e.buttons & 1)) {
             dragging = false;
@@ -553,7 +693,10 @@ function bindGraph(canvas, { onDown, onDrag, onRightClick }) {
         onDrag(locate(e));
     });
 
-    const stop = () => { dragging = false; };
+    const stop = () => {
+        dragging = false;
+        cancelPress();
+    };
     canvas.addEventListener("pointerup", stop);
     canvas.addEventListener("pointercancel", stop);
 }
@@ -588,7 +731,7 @@ filterButtons.negative.addEventListener("click", () => {
         onInit: (win) => {
             async function updatePreview() {
                 const prev = makePreviewClone(currentImage, 240);
-                await spacial.inversion(prev);
+                await spatial.inversion(prev);
                 win.querySelector("#fw-prev-img").src = await imageToDataUrl(prev);
             }
             win.refresh = updatePreview;
@@ -626,7 +769,7 @@ filterButtons.threshold.addEventListener("click", () => {
 
             async function updatePreview() {
                 const prev = makePreviewClone(currentImage, 240);
-                await spacial.threshold(prev, currentLimit);
+                await spatial.threshold(prev, currentLimit);
                 prevImg.src = await imageToDataUrl(prev);
             }
 
@@ -677,7 +820,7 @@ filterButtons.brightness.addEventListener("click", () => {
 
             async function updatePreview() {
                 const prev = makePreviewClone(currentImage, 240);
-                await spacial.brightness(prev, currentVal);
+                await spatial.brightness(prev, currentVal);
                 prevImg.src = await imageToDataUrl(prev);
             }
 
@@ -717,7 +860,7 @@ filterButtons.gama.addEventListener("click", () => {
             <div class="fw-curve">
                 <canvas id="gamma-canvas" width="200" height="200"></canvas>
             </div>
-            <span class="fw-curve-hint">s = c · r<sup>γ</sup> — arraste a curva com o botão esquerdo</span>
+            <span class="fw-curve-hint">s = c · r<sup>γ</sup> — clique ou toque e arraste a curva</span>
             <div class="fw-controls">
                 <div class="fw-control-header">
                     <label>Gama (γ)</label>
@@ -764,7 +907,7 @@ filterButtons.gama.addEventListener("click", () => {
                 drawCurve();
                 const mine = ++previewToken;
                 const prev = makePreviewClone(currentImage, 240);
-                await spacial.gammaCorrection(prev, gamma, constant);
+                await spatial.gammaCorrection(prev, gamma, constant);
                 const url = await imageToDataUrl(prev);
                 if (mine === previewToken) prevImg.src = url;
             }
@@ -819,7 +962,7 @@ filterButtons.linear.addEventListener("click", () => {
             <div class="fw-curve">
                 <canvas id="piece-canvas" width="200" height="200"></canvas>
             </div>
-            <span class="fw-curve-hint">Esquerdo: criar / arrastar ponto — Direito: apagar (máx. ${MAX_POINTS})</span>
+            <span class="fw-curve-hint">Clicar/tocar: criar e arrastar — botão direito ou pressão longa: apagar (máx. ${MAX_POINTS})</span>
             <div class="fw-point-fields" id="points-container"></div>
             <button class="fw-reveal-btn" id="add-point-btn">+ Adicionar Ponto</button>
         `),
@@ -937,7 +1080,7 @@ filterButtons.linear.addEventListener("click", () => {
             async function updatePreview() {
                 const mine = ++previewToken;
                 const prev = makePreviewClone(currentImage, 240);
-                await spacial.pieceWise(prev, rPoints, sPoints);
+                await spatial.pieceWise(prev, rPoints, sPoints);
                 const url = await imageToDataUrl(prev);
                 if (mine === previewToken) prevImg.src = url;
             }
@@ -1018,8 +1161,8 @@ filterButtons.histogram.addEventListener("click", async () => {
             const tabs = win.querySelectorAll(".fw-channel-tab");
 
             const readout = win.querySelector("#hist-readout");
-            let colorHist = await spacial.getColorHistogram(currentImage);
-            let grayHist = await spacial.getHistogram(currentImage, "gray");
+            let colorHist = await spatial.getColorHistogram(currentImage);
+            let grayHist = await spatial.getHistogram(currentImage, "gray");
             let channel = "gray";
             let shownData = null;
 
@@ -1069,8 +1212,8 @@ filterButtons.histogram.addEventListener("click", async () => {
             });
 
             win.refresh = async () => {
-                colorHist = await spacial.getColorHistogram(currentImage);
-                grayHist = await spacial.getHistogram(currentImage, "gray");
+                colorHist = await spatial.getColorHistogram(currentImage);
+                grayHist = await spatial.getHistogram(currentImage, "gray");
                 drawHistogram(channel);
             };
 
@@ -1103,9 +1246,9 @@ filterButtons.histogramEq.addEventListener("click", () => {
                 const prev = makePreviewClone(currentImage, 240);
                 let res;
                 if (mode === "hsi") {
-                    res = spacial.equalizeHistogramHSI(prev);
+                    res = spatial.equalizeHistogramHSI(prev);
                 } else {
-                    res = await spacial.equalizeHistogram(prev);
+                    res = await spatial.equalizeHistogram(prev);
                 }
                 prevImg.src = await imageToDataUrl(res);
             }
@@ -1145,7 +1288,7 @@ filterButtons.steganography.addEventListener("click", () => {
             const revealedBox = win.querySelector("#revealed-box");
 
             revealBtn.addEventListener("click", () => {
-                const msg = spacial.decode(currentImage);
+                const msg = spatial.decode(currentImage);
                 revealedBox.style.display = "block";
                 revealedBox.textContent = msg ? `Mensagem encontrada: "${msg}"` : "Nenhuma mensagem oculta encontrada.";
             });
@@ -1206,9 +1349,9 @@ filterButtons.smoothing.addEventListener("click", () => {
                 const prev = makePreviewClone(currentImage, 240);
                 let res;
                 if (method === "gaussian") {
-                    res = spacial.gaussianBlur(prev, size, sigma);
+                    res = spatial.gaussianBlur(prev, size, sigma);
                 } else {
-                    res = spacial.boxBlur(prev, size);
+                    res = spatial.boxBlur(prev, size);
                 }
                 prevImg.src = await imageToDataUrl(res);
             }
@@ -1274,7 +1417,7 @@ filterButtons.median.addEventListener("click", () => {
 
             async function updatePreview() {
                 const prev = makePreviewClone(currentImage, 240);
-                const res = spacial.medianFilter(prev, size);
+                const res = spatial.medianFilter(prev, size);
                 prevImg.src = await imageToDataUrl(res);
             }
 
@@ -1320,7 +1463,7 @@ filterButtons.laplacian.addEventListener("click", () => {
 
             async function updatePreview() {
                 const prev = makePreviewClone(currentImage, 240);
-                const res = spacial.laplacianFilter(prev, { variant, sharpen });
+                const res = spatial.laplacianFilter(prev, { variant, sharpen });
                 prevImg.src = await imageToDataUrl(res);
             }
 
@@ -1371,7 +1514,7 @@ filterButtons.highBoost.addEventListener("click", () => {
 
             async function updatePreview() {
                 const prev = makePreviewClone(currentImage, 240);
-                const res = spacial.highBoostFilter(prev, A, size);
+                const res = spatial.highBoostFilter(prev, A, size);
                 prevImg.src = await imageToDataUrl(res);
             }
 
@@ -1417,7 +1560,7 @@ filterButtons.sobel.addEventListener("click", () => {
 
             async function updatePreview() {
                 const prev = makePreviewClone(currentImage, 240);
-                const res = axis === "y" ? spacial.sobelY(prev, { normalize: true }) : spacial.sobelX(prev, { normalize: true });
+                const res = axis === "y" ? spatial.sobelY(prev, { normalize: true }) : spatial.sobelX(prev, { normalize: true });
                 prevImg.src = await imageToDataUrl(res);
             }
 
@@ -1448,7 +1591,7 @@ filterButtons.sobelMag.addEventListener("click", () => {
         onInit: (win) => {
             async function updatePreview() {
                 const prev = makePreviewClone(currentImage, 240);
-                const res = spacial.sobelMagnitude(prev, { normalize: true });
+                const res = spatial.sobelMagnitude(prev, { normalize: true });
                 win.querySelector("#fw-prev-img").src = await imageToDataUrl(res);
             }
             win.refresh = updatePreview;
@@ -1540,7 +1683,7 @@ filterButtons.convolution.addEventListener("click", () => {
 
             async function updatePreview() {
                 const prev = makePreviewClone(currentImage, 240);
-                const res = spacial.convolve2D(prev, kernel, { divisor, offset, normalize });
+                const res = spatial.convolve2D(prev, kernel, { divisor, offset, normalize });
                 prevImg.src = await imageToDataUrl(res);
             }
 
@@ -1659,7 +1802,7 @@ if (toolScale) {
 
                 async function updatePreview() {
                     const prev = makePreviewClone(currentImage, 240);
-                    const res = spacial.scaleImage(prev, scaleX, scaleY, interpolation);
+                    const res = spatial.scaleImage(prev, scaleX, scaleY, interpolation);
                     prevImg.src = await imageToDataUrl(res);
                 }
 
@@ -1780,8 +1923,8 @@ if (toolRotate) {
                     const mine = ++previewToken;
                     const prev = makePreviewClone(currentImage, 240);
                     pScale = prev.bitmap.width / currentImage.bitmap.width;
-                    layout = spacial.getRotationLayout(prev.bitmap.width, prev.bitmap.height, angle, pivotX * pScale, pivotY * pScale);
-                    const res = spacial.rotateImage(prev, angle, pivotX * pScale, pivotY * pScale, interpolation);
+                    layout = spatial.getRotationLayout(prev.bitmap.width, prev.bitmap.height, angle, pivotX * pScale, pivotY * pScale);
+                    const res = spatial.rotateImage(prev, angle, pivotX * pScale, pivotY * pScale, interpolation);
                     const url = await imageToDataUrl(res);
                     if (mine !== previewToken) return;
                     prevImg.onload = placeMarker;
@@ -1889,7 +2032,7 @@ if (filterButtons.fourier) {
                                 <button class="fw-kernel-preset-btn" id="hp-preset">Passa-Altas</button>
                                 <button class="fw-kernel-preset-btn" id="reset-fft">Restaurar</button>
                             </div>
-                            <span style="font-size: 10px; color: var(--text-muted); margin-top: 4px;">Pinte no espectro com o mouse para cortar frequências (áreas cortadas ficam em vermelho escuro).</span>
+                            <span style="font-size: 10px; color: var(--text-muted); margin-top: 4px;">Pinte no espectro (mouse ou dedo) para cortar frequências (áreas cortadas ficam em vermelho escuro).</span>
                         </div>
                     </div>
                 </div>
@@ -1969,18 +2112,21 @@ if (filterButtons.fourier) {
                     renderSpectrumAndPreview();
                 }
 
-                sCanvas.addEventListener("mousedown", (e) => {
+                sCanvas.style.touchAction = "none";
+                sCanvas.addEventListener("pointerdown", (e) => {
+                    e.preventDefault();
                     isPainting = true;
+                    sCanvas.setPointerCapture(e.pointerId);
                     paintAt(e);
                 });
 
-                window.addEventListener("mousemove", (e) => {
+                sCanvas.addEventListener("pointermove", (e) => {
                     if (isPainting) paintAt(e);
                 });
 
-                window.addEventListener("mouseup", () => {
-                    isPainting = false;
-                });
+                const stopPainting = () => { isPainting = false; };
+                sCanvas.addEventListener("pointerup", stopPainting);
+                sCanvas.addEventListener("pointercancel", stopPainting);
 
                 // Presets
                 win.querySelector("#lp-preset").addEventListener("click", () => {
@@ -2159,13 +2305,13 @@ if (filterButtons.colorProcessing) {
                     const prev = makePreviewClone(currentImage, 240);
                     let res;
                     if (selectedTab === "sepia") {
-                        res = spacial.sepia(prev);
+                        res = spatial.sepia(prev);
                     } else if (selectedTab === "grayscale") {
-                        res = spacial.convertToGrayscale(prev, grayMethod);
+                        res = spatial.convertToGrayscale(prev, grayMethod);
                     } else if (selectedTab === "hsi") {
-                        res = spacial.adjustHSI(prev, deltaH, deltaS, deltaI);
+                        res = spatial.adjustHSI(prev, deltaH, deltaS, deltaI);
                     } else if (selectedTab === "channels") {
-                        res = spacial.adjustColorChannels(prev, deltaR, deltaG, deltaB);
+                        res = spatial.adjustColorChannels(prev, deltaR, deltaG, deltaB);
                     }
                     prevImg.src = await imageToDataUrl(res);
                 }

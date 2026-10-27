@@ -82,3 +82,46 @@ export function cloneImage(img) {
     }
     return copy;
 }
+
+// ===============================================================================
+// EXPORTAÇÃO DE IMAGEM (PNG, JPEG, JPG, BMP)
+// ===============================================================================
+
+// "jpeg" e "jpg" são o mesmo formato; só muda a extensão do arquivo
+export const EXPORT_FORMATS = {
+    png:  { label: "PNG",           mime: "image/png",  ext: "png",  lossy: false, alpha: true },
+    jpeg: { label: "JPEG",          mime: "image/jpeg", ext: "jpeg", lossy: true,  alpha: false },
+    jpg:  { label: "JPG",           mime: "image/jpeg", ext: "jpg",  lossy: true,  alpha: false },
+    bmp:  { label: "Bitmap (BMP)",  mime: "image/bmp",  ext: "bmp",  lossy: false, alpha: false }
+};
+
+// JPEG e BMP não têm transparência: compõe a imagem sobre fundo branco
+// (c' = c·a/255 + 255·(255 − a)/255), em vez de deixar o fundo transparente virar preto.
+export function flattenOnWhite(img) {
+    const out = cloneImage(img);
+    const data = out.bitmap.data;
+    for (let i = 0; i < data.length; i += 4) {
+        const a = data[i + 3];
+        if (a === 255) continue;
+        data[i + 0] = clamp((data[i + 0] * a + 255 * (255 - a)) / 255);
+        data[i + 1] = clamp((data[i + 1] * a + 255 * (255 - a)) / 255);
+        data[i + 2] = clamp((data[i + 2] * a + 255 * (255 - a)) / 255);
+        data[i + 3] = 255;
+    }
+    return out;
+}
+
+// Codifica a imagem no formato escolhido; quality (1-100) vale só para JPEG/JPG
+export async function encodeImage(img, formatKey, quality = 92) {
+    const fmt = EXPORT_FORMATS[formatKey];
+    if (!fmt) throw new Error(`Formato de exportação desconhecido: ${formatKey}`);
+
+    const out = fmt.alpha ? cloneImage(img) : flattenOnWhite(img);
+    if (fmt.lossy && typeof out.quality === "function") out.quality(clamp(quality, 1, 100));
+
+    if (typeof out.getBufferAsync === "function") {
+        return await out.getBufferAsync(fmt.mime);
+    }
+    const base64 = (await out.getBase64Async(fmt.mime)).split(",")[1];
+    return Uint8Array.from(atob(base64), (c) => c.charCodeAt(0));
+}

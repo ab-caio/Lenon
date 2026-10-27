@@ -29,6 +29,7 @@ font-family: var(--font-family);
 font-size: 12px;
 overflow: hidden;
 height: 100vh;
+height: 100dvh;
 -webkit-font-smoothing: antialiased;
 }
 
@@ -899,4 +900,275 @@ transform: translateY(-50%);
 
 .fw-pivot-marker.dragging {
 cursor: grabbing;
+}
+
+/* ===============================================================================
+   MENUS COLAPSÁVEIS POR DOMÍNIO (barra de filtros)
+   =============================================================================== */
+
+.menu-group {
+border-bottom: 1px solid var(--border-dark);
+}
+
+.menu-group > summary {
+display: flex;
+align-items: center;
+gap: 6px;
+list-style: none;
+cursor: pointer;
+user-select: none;
+margin-top: 0;
+}
+
+.menu-group > summary::-webkit-details-marker {
+display: none;
+}
+
+.menu-group > summary::before {
+content: "▾";
+display: inline-block;
+width: 12px;
+color: var(--text-muted);
+}
+
+.menu-group:not([open]) > summary::before {
+content: "▸";
+}
+
+.menu-group > summary:hover {
+background: var(--btn-bg);
+}
+
+.menu-items {
+padding: 8px;
+display: flex;
+flex-direction: column;
+gap: 4px;
+}
+
+.filter-window .fw-text {
+width: 100%;
+background: #222222;
+border: 1px solid var(--border-dark);
+color: var(--text-primary);
+font-size: 12px;
+padding: 4px 6px;
+font-family: inherit;
+}
+
+.layer-row .move-btn {
+display: none;
+}
+
+.layer-row .move-btn:disabled {
+opacity: 0.25;
+}
+
+/* ===============================================================================
+   RESPONSIVIDADE (celular / tablet)
+   =============================================================================== */
+
+.nav-toggle,
+#backdrop {
+display: none;
+}
+
+/* Telas pequenas: as duas barras laterais viram gavetas que abrem sobre a imagem */
+@media (max-width: 900px) {
+:root {
+--header-h: 40px;
+}
+
+body {
+grid-template-columns: 1fr;
+grid-template-rows: auto 1fr;
+grid-template-areas:
+"top"
+"canvas";
+}
+
+header {
+flex-wrap: wrap;
+justify-content: flex-start;
+gap: 6px 8px;
+padding: 6px 8px;
+min-height: 40px;
+}
+
+header h1 {
+margin-right: auto;
+}
+
+/* 1ª linha: ☰ Ferramentas · LENON · Filtros ☰ — 2ª linha: Escolher imagem e Salvar */
+#top-area {
+order: 3;
+width: 100%;
+}
+
+#top-area > * {
+flex: 1;
+text-align: center;
+}
+
+#toggle-filters {
+order: 2;
+}
+
+.nav-toggle {
+display: inline-flex;
+align-items: center;
+font-family: inherit;
+font-size: 12px;
+color: var(--text-primary);
+background: var(--btn-bg);
+border: 1px solid var(--border-dark);
+padding: 4px 10px;
+cursor: pointer;
+}
+
+.nav-toggle[aria-expanded="true"] {
+background: var(--accent);
+color: #fff;
+}
+
+.sidebar {
+position: fixed;
+top: var(--header-h);
+bottom: 0;
+width: min(86vw, 300px);
+z-index: 30;
+border: none;
+box-shadow: 0 0 24px rgba(0, 0, 0, 0.6);
+transition: transform 0.2s ease;
+overscroll-behavior: contain;
+}
+
+#tools {
+left: 0;
+transform: translateX(-105%);
+}
+
+#filters {
+right: 0;
+transform: translateX(105%);
+}
+
+body.tools-open #tools,
+body.filters-open #filters {
+transform: none;
+}
+
+#backdrop {
+position: fixed;
+inset: var(--header-h) 0 0 0;
+background: rgba(0, 0, 0, 0.55);
+z-index: 20;
+}
+
+body.tools-open #backdrop,
+body.filters-open #backdrop {
+display: block;
+}
+
+#canvas-area {
+padding: 8px;
+}
+
+#canvas img {
+max-width: calc(100vw - 18px);
+max-height: calc(100vh - var(--header-h) - 18px);
+max-height: calc(100dvh - var(--header-h) - 18px);
+}
+
+/* Sem mouse não há arrastar-e-soltar confiável: setas para reordenar camadas */
+.layer-row .move-btn {
+display: inline-block;
+}
+}
+
+/* Celular: as janelas de filtro ocupam a tela inteira, com as colunas empilhadas */
+@media (max-width: 700px) {
+.filter-window,
+.filter-window.fw-wide,
+.filter-window.fw-convolution {
+left: 0 !important;
+top: 0 !important;
+width: 100% !important;
+height: 100% !important;
+min-width: 0 !important;
+min-height: 0 !important;
+max-width: none !important;
+max-height: none !important;
+border: none;
+resize: none;
+}
+
+.filter-window .fw-close {
+font-size: 18px;
+padding: 2px 10px;
+}
+
+.filter-window .fw-body {
+overflow-y: auto;
+}
+
+.filter-window .fw-body-split {
+flex-direction: column;
+flex: none;
+}
+
+.filter-window .fw-col-image {
+width: 100% !important;
+flex: none;
+}
+
+.filter-window .fw-col-image .fw-preview {
+flex: none;
+height: 34vh;
+min-height: 180px;
+}
+
+.filter-window .fw-col-main {
+flex: none;
+overflow: visible;
+}
+
+.filter-window .fw-apply {
+position: sticky;
+bottom: 0;
+padding: 12px;
+}
+}
+
+/* Telas de toque: alvos maiores e campos de 16 px (evita o zoom automático do iOS) */
+@media (pointer: coarse) {
+.filter-btn,
+.tool-item {
+padding: 11px 12px;
+}
+
+label.file-btn,
+button.action-btn,
+.nav-toggle {
+padding: 8px 12px;
+}
+
+.layer-row {
+padding: 8px;
+}
+
+.layer-row button {
+font-size: 15px;
+padding: 4px 8px;
+}
+
+input,
+select,
+textarea {
+font-size: 16px !important;
+}
+
+.filter-window .fw-value {
+width: 70px;
+}
 }

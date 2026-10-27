@@ -2,7 +2,7 @@
 <html lang="pt-BR">
     <head>
         <meta charset="UTF-8">
-        <meta name="viewport" content="width=device-width, initial-scale=1">
+        <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
         <title>Lenon</title>
 
         <!-------------------------------------------------->
@@ -21,13 +21,18 @@
         <!---------------- Barra superior ------------------>
         <!-- contém os botões de escolher imagem e salvar -->
         <header>
+            <button class="nav-toggle" id="toggle-tools" aria-controls="tools" aria-expanded="false">☰ Ferramentas</button>
             <h1>Lenon</h1>
             <div id="top-area">
                 <input type="file" id="img-input" accept="image/*">
                 <label class="file-btn" for="img-input">Escolher imagem</label>
                 <button class="action-btn" id="save-btn" disabled>Salvar</button>
             </div>
+            <button class="nav-toggle" id="toggle-filters" aria-controls="filters" aria-expanded="false">Filtros ☰</button>
         </header>
+
+        <!-- Fundo escurecido atrás das barras laterais abertas (só em telas pequenas) -->
+        <div id="backdrop"></div>
 
 
 
@@ -36,9 +41,6 @@
 
         <aside class="sidebar" id="tools">
                 <div class="panel-title">FERRAMENTAS</div>
-                <div class="tool-item">Selecionar</div>
-                <div class="tool-item">Cortar</div>
-                <div class="tool-item">Desenhar</div>
                 <div class="tool-item tool-item-btn tool-item-disabled" id="tool-scale">Escala</div>
                 <div class="tool-item tool-item-btn tool-item-disabled" id="tool-rotate">Rotação</div>
         </aside>
@@ -49,33 +51,45 @@
         <!-- contém as diversas opções de filtros e processamento de imagem-->
 
         <aside class="sidebar" id="filters">
-            <div id="filters-items">
-                <div class="panel-title">FILTROS</div>
-                <button class="filter-btn" id="negative" disabled>Negativo</button>
-                <button class="filter-btn" id="threshold" disabled>Limiarização</button>
-                <button class="filter-btn" id="brightness" disabled>Brilho</button>
-                <button class="filter-btn" id="gama" disabled>Correção de gama</button>
-                <button class="filter-btn" id="linear-func" disabled>Linear</button>
-                <button class="filter-btn" id="histogram" disabled>Histograma</button>
-                <button class="filter-btn" id="histogram-eq" disabled>Equalização de histograma</button>
-                <button class="filter-btn" id="esteganography" disabled>Esteganografia</button>
-                <button class="filter-btn" id="smoothing" disabled>Suavização (Média/Gaussiano)</button>
-                <button class="filter-btn" id="median" disabled>Filtragem pela mediana</button>
-                <button class="filter-btn" id="laplacian-sharpen" disabled>Aguçamento Laplaciano</button>
-                <button class="filter-btn" id="high-boost" disabled>Aguçamento High-Boost</button>
-                <button class="filter-btn" id="sobel" disabled>Sobel (X / Y)</button>
-                <button class="filter-btn" id="sobel-magnitude" disabled>Detecção de bordas (gradiente)</button>
-                <button class="filter-btn" id="convolution" disabled>Convolução</button>
-                <button class="filter-btn" id="fourier" disabled>Domínio da Frequência (FFT)</button>
-                <button class="filter-btn" id="color-processing" disabled>Processamento de Cores</button>
-            </div>
-            <div class="section-gap"></div>
+            <div class="panel-title">FILTROS</div>
 
-            <div class="panel-title">CAMADAS</div>
-            <div class="layers">
-                <div id="layers-list"></div>
-                <div class="layers-empty">Nenhum filtro aplicado</div>
-            </div>
+            <!-- Menus colapsáveis por domínio de processamento -->
+            <details class="menu-group" id="menu-spatial" open>
+                <summary class="panel-title">Domínio Espacial</summary>
+                <div class="menu-items">
+                    <button class="filter-btn" id="negative" disabled>Negativo</button>
+                    <button class="filter-btn" id="threshold" disabled>Limiarização</button>
+                    <button class="filter-btn" id="brightness" disabled>Brilho</button>
+                    <button class="filter-btn" id="gama" disabled>Correção de gama</button>
+                    <button class="filter-btn" id="linear-func" disabled>Linear</button>
+                    <button class="filter-btn" id="histogram" disabled>Histograma</button>
+                    <button class="filter-btn" id="histogram-eq" disabled>Equalização de histograma</button>
+                    <button class="filter-btn" id="esteganography" disabled>Esteganografia</button>
+                    <button class="filter-btn" id="smoothing" disabled>Suavização</button>
+                    <button class="filter-btn" id="median" disabled>Filtragem pela mediana</button>
+                    <button class="filter-btn" id="laplacian-sharpen" disabled>Aguçamento Laplaciano</button>
+                    <button class="filter-btn" id="high-boost" disabled>Aguçamento High-Boost</button>
+                    <button class="filter-btn" id="sobel" disabled>Sobel</button>
+                    <button class="filter-btn" id="sobel-magnitude" disabled>Gradiente</button>
+                    <button class="filter-btn" id="convolution" disabled>Convolução</button>
+                    <button class="filter-btn" id="color-processing" disabled>Processamento de Cores</button>
+                </div>
+            </details>
+
+            <details class="menu-group" id="menu-frequency" open>
+                <summary class="panel-title">Domínio da Frequência</summary>
+                <div class="menu-items">
+                    <button class="filter-btn" id="fourier" disabled>Transformada de Fourier</button>
+                </div>
+            </details>
+
+            <details class="menu-group" id="menu-layers" open>
+                <summary class="panel-title">Camadas</summary>
+                <div class="layers">
+                    <div id="layers-list"></div>
+                    <div class="layers-empty">Nenhum filtro aplicado</div>
+                </div>
+            </details>
         </aside>
 
 
@@ -94,6 +108,6 @@
 
 
 
-        <script type="module" src="script.js?v=4"></script>
+        <script type="module" src="script.js?v=5"></script>
     </body>
 </html>
