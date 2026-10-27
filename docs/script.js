@@ -1,5 +1,5 @@
-// O "?v=" força o navegador a carregar a versão atual dos módulos (evita cache antigo)
-import * as spacial from "./modules/spatial.js?v=5";
+
+import * as spatial from "./modules/spatial.js?v=5";
 import * as frequency from "./modules/frequency.js?v=5";
 import { createImage, cloneImage, clamp, EXPORT_FORMATS, encodeImage } from "./modules/auxiliary.js?v=5";
 
