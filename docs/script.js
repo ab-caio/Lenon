@@ -1,7 +1,7 @@
 
-import * as spatial from "./modules/spatial.js?v=5";
-import * as frequency from "./modules/frequency.js?v=5";
-import { createImage, cloneImage, clamp, EXPORT_FORMATS, encodeImage } from "./modules/auxiliary.js?v=5";
+import * as spatial from "./modules/spatial.js?v=6";
+import * as frequency from "./modules/frequency.js?v=6";
+import { createImage, cloneImage, clamp, EXPORT_FORMATS, encodeImage } from "./modules/auxiliary.js?v=6";
 
 if (typeof spatial.getRotationLayout !== "function") {
     alert("modules/spatial.js está desatualizado (sem a rotação com canvas ampliado). Substitua o arquivo e recarregue com Ctrl+F5.");
@@ -1906,15 +1906,18 @@ if (toolRotate) {
                     return { left: ir.left - wr.left, top: ir.top - wr.top, width: ir.width, height: ir.height };
                 }
 
-                // O pivô (pivotX, pivotY) é o ponto fixo invariante no canvas da imagem
+                // O pivô (pivotX, pivotY) fica posicionado de acordo com a centralização e padding do canvas
                 function placeMarker() {
+                    if (!layout) return;
                     const r = shownRect();
                     if (!r.width || !r.height) return;
-                    const normX = pivotX / (currentImage.bitmap.width - 1);
-                    const normY = pivotY / (currentImage.bitmap.height - 1);
+                    const pivCanvasX = (pivotX * pScale) + layout.padX;
+                    const pivCanvasY = (pivotY * pScale) + layout.padY;
+                    const normX = pivCanvasX / layout.outW;
+                    const normY = pivCanvasY / layout.outH;
                     marker.style.left = `${r.left + normX * r.width}px`;
                     marker.style.top = `${r.top + normY * r.height}px`;
-                    readout.textContent = `Pivô: (${pivotX}, ${pivotY}) px — Imagem: ${currentImage.bitmap.width}×${currentImage.bitmap.height} px`;
+                    readout.textContent = `Pivô: (${pivotX}, ${pivotY}) px — Canvas: ${Math.round(layout.outW / pScale)}×${Math.round(layout.outH / pScale)} px`;
                 }
 
                 async function updatePreview() {
@@ -1951,15 +1954,22 @@ if (toolRotate) {
                     });
                 });
 
-                // Atualiza a posição do pivô diretamente a partir do clique ou arraste do usuário
+                // Converte a posição do ponteiro na imagem de preview para as coordenadas reais do pivô
                 function pivotFromPointer(e) {
+                    if (!layout) return;
                     const r = shownRect();
                     const wr = wrap.getBoundingClientRect();
                     const fx = Math.max(0, Math.min(1, (e.clientX - wr.left - r.left) / r.width));
                     const fy = Math.max(0, Math.min(1, (e.clientY - wr.top - r.top) / r.height));
 
-                    pivotX = Math.round(fx * (currentImage.bitmap.width - 1));
-                    pivotY = Math.round(fy * (currentImage.bitmap.height - 1));
+                    const canvasX = fx * layout.outW;
+                    const canvasY = fy * layout.outH;
+
+                    const newPx = Math.round((canvasX - layout.padX) / pScale);
+                    const newPy = Math.round((canvasY - layout.padY) / pScale);
+
+                    pivotX = Math.max(0, Math.min(currentImage.bitmap.width - 1, newPx));
+                    pivotY = Math.max(0, Math.min(currentImage.bitmap.height - 1, newPy));
                     updatePreview();
                 }
 

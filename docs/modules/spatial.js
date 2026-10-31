@@ -651,19 +651,52 @@ export function scaleImage(img, scaleX, scaleY = scaleX, interpolation = 'neares
     return output;
 }
 
-// Geometria da rotação: dimensões e origem do canvas da rotação
+// Geometria da rotação: dimensões e margens (padding) do canvas ampliado para conter
+// tanto a imagem original quanto toda a imagem rotacionada sem cortes, com a imagem centralizada.
 export function getRotationLayout(width, height, angleDegrees, pivotX, pivotY) {
+    const px = pivotX !== null ? pivotX : (width - 1) / 2;
+    const py = pivotY !== null ? pivotY : (height - 1) / 2;
+
+    const rad = (angleDegrees * Math.PI) / 180;
+    const cosA = Math.cos(rad);
+    const sinA = Math.sin(rad);
+
+    // Cantos da imagem original
+    const corners = [
+        [0, 0],
+        [width, 0],
+        [0, height],
+        [width, height]
+    ];
+
+    let minX = 0, maxX = width, minY = 0, maxY = height;
+    for (const [cx, cy] of corners) {
+        const rx = cosA * (cx - px) - sinA * (cy - py) + px;
+        const ry = sinA * (cx - px) + cosA * (cy - py) + py;
+        if (rx < minX) minX = rx;
+        if (rx > maxX) maxX = rx;
+        if (ry < minY) minY = ry;
+        if (ry > maxY) maxY = ry;
+    }
+
+    // Margens simétricas para conter todas as extremidades e manter a imagem centralizada
+    const padX = Math.ceil(Math.max(0, -minX, maxX - width));
+    const padY = Math.ceil(Math.max(0, -minY, maxY - height));
+    const outW = width + 2 * padX;
+    const outH = height + 2 * padY;
+
     return {
-        outW: width,
-        outH: height,
-        originX: 0,
-        originY: 0
+        outW,
+        outH,
+        padX,
+        padY,
+        originX: -padX,
+        originY: -padY
     };
 }
 
 export function rotateImage(img, angleDegrees, pivotX = null, pivotY = null, interpolation = 'nearest') {
-    // Rotação espacial (ângulo positivo = sentido horário) com pivô e interpolação.
-    // O pivô (px, py) atua como o centro invariante da transformação.
+    // Rotação espacial com pivô arbitrário e canvas ampliado e centralizado para não cortar extremidades
     const width = img.bitmap.width;
     const height = img.bitmap.height;
     const src = img.bitmap.data;
@@ -675,21 +708,23 @@ export function rotateImage(img, angleDegrees, pivotX = null, pivotY = null, int
     const cosA = Math.cos(rad);
     const sinA = Math.sin(rad);
 
-    const output = createImage(width, height);
+    const { outW, outH, padX, padY } = getRotationLayout(width, height, angleDegrees, px, py);
+
+    const output = createImage(outW, outH);
     if (!output || !output.bitmap || !output.bitmap.data) {
         throw new Error("Falha ao alocar buffer para a nova imagem rotacionada.");
     }
     const dst = output.bitmap.data;
 
-    for (let y = 0; y < height; ++y) {
-        for (let x = 0; x < width; ++x) {
-            const dstIdx = (y * width + x) * 4;
+    for (let y = 0; y < outH; ++y) {
+        for (let x = 0; x < outW; ++x) {
+            const dstIdx = (y * outW + x) * 4;
 
-            // Mapeamento reverso puro em torno do pivô (px, py):
-            // srcX = cos(rad) * (x - px) + sin(rad) * (y - py) + px
-            // srcY = -sin(rad) * (x - px) + cos(rad) * (y - py) + py
-            const dx = x - px;
-            const dy = y - py;
+            // Mapeamento reverso em torno do pivô (px, py) considerando a margem de centralização:
+            // x_orig = x - padX
+            // y_orig = y - padY
+            const dx = (x - padX) - px;
+            const dy = (y - padY) - py;
             const srcX = cosA * dx + sinA * dy + px;
             const srcY = -sinA * dx + cosA * dy + py;
 
