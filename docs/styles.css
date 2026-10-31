@@ -1172,3 +1172,50 @@ font-size: 16px !important;
 width: 70px;
 }
 }
+
+.zoom-controls {
+    display: inline-flex;
+    align-items: center;
+    gap: 2px;
+    background: var(--bg-dark);
+    border: 1px solid var(--border-dark);
+    padding: 2px;
+}
+
+.zoom-btn {
+    padding: 3px 8px !important;
+    min-width: 24px;
+    font-size: 11px !important;
+}
+
+#zoom-level {
+    display: inline-block;
+    min-width: 36px;
+    text-align: center;
+    font-weight: 500;
+}
+
+
+/* Barras de rolagem globais estilizadas: fundo escuro e barra cinza claro */
+* {
+    scrollbar-width: thin;
+    scrollbar-color: #888 #1a1a1a;
+}
+
+::-webkit-scrollbar {
+    width: 8px;
+    height: 8px;
+}
+
+::-webkit-scrollbar-track {
+    background: #1a1a1a;
+}
+
+::-webkit-scrollbar-thumb {
+    background: #888;
+    border-radius: 4px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+    background: #aaa;
+}

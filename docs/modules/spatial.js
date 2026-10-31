@@ -11,24 +11,27 @@ export async function inversion(img) {
         lut[i] = 255 - i;
     }
 
-    const data = img.bitmap.data;
-    img.scan(0, 0, img.bitmap.width, img.bitmap.height, function(x, y, idx) {
+    const output = cloneImage(img);
+    const data = output.bitmap.data;
+    output.scan(0, 0, output.bitmap.width, output.bitmap.height, function(x, y, idx) {
         data[idx + 0] = lut[data[idx + 0]];
         data[idx + 1] = lut[data[idx + 1]];
         data[idx + 2] = lut[data[idx + 2]];
     });
-    return img;
+    return output;
 }
 
-export async function threshold(img, limit) {
+export async function threshold(img, limit = 128) {
     // Binarização baseada em limiar sobre a luminância
+    const lim = Number.isFinite(Number(limit)) ? Number(limit) : 128;
     const lut = new Uint8ClampedArray(256);
     for (let i = 0; i < 256; ++i) {
-        lut[i] = i < limit ? 0 : 255;
+        lut[i] = i < lim ? 0 : 255;
     }
 
-    const data = img.bitmap.data;
-    img.scan(0, 0, img.bitmap.width, img.bitmap.height, function(x, y, idx) {
+    const output = cloneImage(img);
+    const data = output.bitmap.data;
+    output.scan(0, 0, output.bitmap.width, output.bitmap.height, function(x, y, idx) {
         const R = data[idx + 0];
         const G = data[idx + 1];
         const B = data[idx + 2];
@@ -40,47 +43,52 @@ export async function threshold(img, limit) {
         data[idx + 1] = val;
         data[idx + 2] = val;
     });
-    return img;
+    return output;
 }
 
-export async function brightness(img, value) {
+export async function brightness(img, value = 0) {
     // Deslocamento de intensidade: s = clamp(r + value)
-    if (value === 0) return img;
+    const valOffset = Number.isFinite(Number(value)) ? Number(value) : 0;
+    const output = cloneImage(img);
+    if (valOffset === 0) return output;
 
     const lut = new Uint8ClampedArray(256);
     for (let i = 0; i < 256; ++i) {
-        lut[i] = clamp(i + value);
+        lut[i] = clamp(i + valOffset);
     }
 
-    const data = img.bitmap.data;
-    img.scan(0, 0, img.bitmap.width, img.bitmap.height, function(x, y, idx) {
+    const data = output.bitmap.data;
+    output.scan(0, 0, output.bitmap.width, output.bitmap.height, function(x, y, idx) {
         data[idx + 0] = lut[data[idx + 0]];
         data[idx + 1] = lut[data[idx + 1]];
         data[idx + 2] = lut[data[idx + 2]];
     });
-    return img;
+    return output;
 }
 
-export async function gammaCorrection(img, gamma, constant = 1) {
+export async function gammaCorrection(img, gamma = 1.0, constant = 1) {
     // Curva de potência: s = c * (r / 255)^gamma * 255
-    // gamma = 0 é válido (s = c para todo r); apenas valores negativos são rejeitados
-    if (gamma < 0) throw new Error("Gamma must not be negative");
-    if (gamma === 1 && constant === 1) return img;
+    const g = Number.isFinite(Number(gamma)) ? Number(gamma) : 1.0;
+    const c = Number.isFinite(Number(constant)) ? Number(constant) : 1.0;
+    if (g < 0) throw new Error("Gamma must not be negative");
+
+    const output = cloneImage(img);
+    if (g === 1 && c === 1) return output;
 
     const lut = new Uint8ClampedArray(256);
     for (let i = 0; i < 256; ++i) {
         const normalized = i / 255;
-        const corrected = Math.pow(normalized, gamma);
-        lut[i] = clamp(constant * corrected * 255);
+        const corrected = Math.pow(normalized, g);
+        lut[i] = clamp(c * corrected * 255);
     }
 
-    const data = img.bitmap.data;
-    img.scan(0, 0, img.bitmap.width, img.bitmap.height, function(x, y, idx) {
+    const data = output.bitmap.data;
+    output.scan(0, 0, output.bitmap.width, output.bitmap.height, function(x, y, idx) {
         data[idx + 0] = lut[data[idx + 0]];
         data[idx + 1] = lut[data[idx + 1]];
         data[idx + 2] = lut[data[idx + 2]];
     });
-    return img;
+    return output;
 }
 
 export async function pieceWise(img, rPoints, sPoints) {
@@ -105,40 +113,44 @@ export async function pieceWise(img, rPoints, sPoints) {
         lut[i] = clamp(value);
     }
 
-    const data = img.bitmap.data;
-    img.scan(0, 0, img.bitmap.width, img.bitmap.height, function(x, y, idx) {
+    const output = cloneImage(img);
+    const data = output.bitmap.data;
+    output.scan(0, 0, output.bitmap.width, output.bitmap.height, function(x, y, idx) {
         data[idx + 0] = lut[data[idx + 0]];
         data[idx + 1] = lut[data[idx + 1]];
         data[idx + 2] = lut[data[idx + 2]];
     });
-    return img;
+    return output;
 }
 
 export function encode(img, message) {
-    // Injeção de mensagem de texto no plano de bits menos significativo (LSB)
-    const data = img.bitmap.data;
-    const messageWithNull = message + '\0';
-    const maxBits = img.bitmap.width * img.bitmap.height * 3;
-    const totalBits = messageWithNull.length * 8;
+    // Injeção de mensagem de texto no plano de bits menos significativo (LSB) com suporte a UTF-8
+    const output = cloneImage(img);
+    const data = output.bitmap.data;
+    const encoder = typeof TextEncoder !== 'undefined' ? new TextEncoder() : null;
+    const msgBytes = encoder ? Array.from(encoder.encode(message)) : message.split('').map(c => c.charCodeAt(0));
+    msgBytes.push(0); // delimitador nulo
 
+    const totalBits = msgBytes.length * 8;
+    const maxBits = output.bitmap.width * output.bitmap.height * 3;
     if (totalBits > maxBits) throw new Error("Message is too big for this image");
 
     let bitIndex = 0;
     for (let i = 0; i < data.length && bitIndex < totalBits; i += 4) {
         for (let c = 0; c < 3 && bitIndex < totalBits; ++c) {
-            const charCode = messageWithNull.charCodeAt(Math.floor(bitIndex / 8));
-            const bit = (charCode >> (7 - (bitIndex % 8))) & 1;
+            const byteVal = msgBytes[Math.floor(bitIndex / 8)];
+            const bit = (byteVal >> (7 - (bitIndex % 8))) & 1;
             data[i + c] = (data[i + c] & 0xFE) | bit;
             ++bitIndex;
         }
     }
-    return img;
+    return output;
 }
 
 export function decode(img) {
-    // Extração sequencial de mensagem oculta no LSB até encontrar '\0'
+    // Extração sequencial de mensagem oculta no LSB até encontrar '\0' (suporte a UTF-8)
     const data = img.bitmap.data;
-    let message = '';
+    const bytes = [];
     let bitsCount = 0;
     let currentByte = 0;
 
@@ -148,14 +160,22 @@ export function decode(img) {
             ++bitsCount;
 
             if (bitsCount === 8) {
-                if (currentByte === 0) return message;
-                message += String.fromCharCode(currentByte);
+                if (currentByte === 0) {
+                    if (typeof TextDecoder !== 'undefined') {
+                        return new TextDecoder().decode(new Uint8Array(bytes));
+                    }
+                    return String.fromCharCode(...bytes);
+                }
+                bytes.push(currentByte);
                 currentByte = 0;
                 bitsCount = 0;
             }
         }
     }
-    return message;
+    if (typeof TextDecoder !== 'undefined') {
+        return new TextDecoder().decode(new Uint8Array(bytes));
+    }
+    return String.fromCharCode(...bytes);
 }
 
 // ===============================================================================
@@ -209,15 +229,23 @@ export async function equalizeHistogram(img) {
     const histogram = await getHistogram(img, 'gray');
     const lut = new Uint8ClampedArray(256);
     const totalPixels = img.bitmap.width * img.bitmap.height;
-    const factor = 255 / totalPixels;
 
+    let cdfMin = 0;
     let sum = 0;
     for (let j = 0; j < 256; ++j) {
         sum += histogram[j];
-        lut[j] = clamp(factor * sum);
+        if (cdfMin === 0 && sum > 0) {
+            cdfMin = sum;
+        }
+        if (totalPixels === cdfMin) {
+            lut[j] = j;
+        } else {
+            lut[j] = clamp(Math.round(((sum - cdfMin) / (totalPixels - cdfMin)) * 255));
+        }
     }
 
-    const data = img.bitmap.data;
+    const output = cloneImage(img);
+    const data = output.bitmap.data;
     for (let i = 0; i < data.length; i += 4) {
         const r = data[i + 0];
         const g = data[i + 1];
@@ -229,7 +257,7 @@ export async function equalizeHistogram(img) {
         data[i + 1] = eqVal;
         data[i + 2] = eqVal;
     }
-    return img;
+    return output;
 }
 
 export function normalizeMinMax(buffer, minVal, maxVal) {
@@ -267,6 +295,9 @@ export function convolve2D(img, kernel, options = {}) {
             }
         }
         divisor = sumWeights !== 0 ? sumWeights : 1;
+    }
+    if (!Number.isFinite(divisor) || divisor === 0) {
+        throw new Error("Divisor must be a non-zero finite number");
     }
 
     const offset = options.offset || 0;
@@ -362,6 +393,7 @@ export function boxBlur(img, size = 3) {
 export function gaussianBlur(img, size = 3, sigma = 1.0) {
     // Suavização Gaussiana analítica 2D
     if (size % 2 === 0 || size < 3) throw new Error("Size must be an odd integer >= 3");
+    if (!Number.isFinite(sigma) || sigma <= 0) throw new Error("Sigma must be strictly positive");
     const half = Math.floor(size / 2);
     const twoSigmaSq = 2 * sigma * sigma;
     const kernel = [];
@@ -587,7 +619,13 @@ export function sobelMagnitude(img, options = {}) {
 
 export function scaleImage(img, scaleX, scaleY = scaleX, interpolation = 'nearest') {
     // Redimensionamento espacial por mapeamento reverso (backward mapping)
-    if (scaleX <= 0 || scaleY <= 0) throw new Error("Scale factors must be strictly positive");
+    if (typeof scaleY === 'string') {
+        interpolation = scaleY;
+        scaleY = scaleX;
+    }
+    if (!Number.isFinite(scaleX) || !Number.isFinite(scaleY) || scaleX <= 0 || scaleY <= 0) {
+        throw new Error("Scale factors must be finite and strictly positive");
+    }
 
     const srcWidth = img.bitmap.width;
     const srcHeight = img.bitmap.height;
@@ -651,25 +689,23 @@ export function scaleImage(img, scaleX, scaleY = scaleX, interpolation = 'neares
     return output;
 }
 
-// Geometria da rotação: dimensões e margens (padding) do canvas ampliado para conter
-// tanto a imagem original quanto toda a imagem rotacionada sem cortes, com a imagem centralizada.
-export function getRotationLayout(width, height, angleDegrees, pivotX, pivotY) {
-    const px = pivotX !== null ? pivotX : (width - 1) / 2;
-    const py = pivotY !== null ? pivotY : (height - 1) / 2;
+export function getRotationLayout(width, height, angleDegrees, pivotX = null, pivotY = null) {
+    const px = pivotX != null ? pivotX : (width - 1) / 2;
+    const py = pivotY != null ? pivotY : (height - 1) / 2;
 
     const rad = (angleDegrees * Math.PI) / 180;
     const cosA = Math.cos(rad);
     const sinA = Math.sin(rad);
 
-    // Cantos da imagem original
+    // Cantos nos centros dos pixels das extremidades [-0.5, dim - 0.5]
     const corners = [
-        [0, 0],
-        [width, 0],
-        [0, height],
-        [width, height]
+        [-0.5, -0.5],
+        [width - 0.5, -0.5],
+        [-0.5, height - 0.5],
+        [width - 0.5, height - 0.5]
     ];
 
-    let minX = 0, maxX = width, minY = 0, maxY = height;
+    let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
     for (const [cx, cy] of corners) {
         const rx = cosA * (cx - px) - sinA * (cy - py) + px;
         const ry = sinA * (cx - px) + cosA * (cy - py) + py;
@@ -679,11 +715,11 @@ export function getRotationLayout(width, height, angleDegrees, pivotX, pivotY) {
         if (ry > maxY) maxY = ry;
     }
 
-    // Margens simétricas para conter todas as extremidades e manter a imagem centralizada
-    const padX = Math.ceil(Math.max(0, -minX, maxX - width));
-    const padY = Math.ceil(Math.max(0, -minY, maxY - height));
-    const outW = width + 2 * padX;
-    const outH = height + 2 * padY;
+    const EPS = 1e-7;
+    const outW = Math.max(1, Math.ceil(maxX - minX - EPS));
+    const outH = Math.max(1, Math.ceil(maxY - minY - EPS));
+    const padX = -(minX + 0.5);
+    const padY = -(minY + 0.5);
 
     return {
         outW,
@@ -701,8 +737,8 @@ export function rotateImage(img, angleDegrees, pivotX = null, pivotY = null, int
     const height = img.bitmap.height;
     const src = img.bitmap.data;
 
-    const px = pivotX !== null ? pivotX : (width - 1) / 2;
-    const py = pivotY !== null ? pivotY : (height - 1) / 2;
+    const px = pivotX != null ? pivotX : (width - 1) / 2;
+    const py = pivotY != null ? pivotY : (height - 1) / 2;
 
     const rad = (angleDegrees * Math.PI) / 180;
     const cosA = Math.cos(rad);
@@ -720,9 +756,7 @@ export function rotateImage(img, angleDegrees, pivotX = null, pivotY = null, int
         for (let x = 0; x < outW; ++x) {
             const dstIdx = (y * outW + x) * 4;
 
-            // Mapeamento reverso em torno do pivô (px, py) considerando a margem de centralização:
-            // x_orig = x - padX
-            // y_orig = y - padY
+            // Mapeamento reverso em torno do pivô (px, py) considerando a margem do canvas:
             const dx = (x - padX) - px;
             const dy = (y - padY) - py;
             const srcX = cosA * dx + sinA * dy + px;

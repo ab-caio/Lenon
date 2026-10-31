@@ -27,6 +27,11 @@
                 <input type="file" id="img-input" accept="image/*">
                 <label class="file-btn" for="img-input">Escolher imagem</label>
                 <button class="action-btn" id="save-btn" disabled>Salvar</button>
+                <div class="zoom-controls">
+                    <button class="action-btn zoom-btn" id="zoom-out" title="Diminuir Zoom" disabled>-</button>
+                    <button class="action-btn zoom-btn" id="zoom-reset" title="Restaurar 100%" disabled><span id="zoom-level">100%</span></button>
+                    <button class="action-btn zoom-btn" id="zoom-in" title="Aumentar Zoom" disabled>+</button>
+                </div>
             </div>
             <button class="nav-toggle" id="toggle-filters" aria-controls="filters" aria-expanded="false">Filtros ☰</button>
         </header>

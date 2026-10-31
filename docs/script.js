@@ -105,6 +105,9 @@ if (typeof ResizeObserver !== "undefined") {
 
 function setControlsEnabled(enabled) {
     saveBtn.disabled = !enabled;
+    if (zoomOutBtn) zoomOutBtn.disabled = !enabled;
+    if (zoomInBtn) zoomInBtn.disabled = !enabled;
+    if (zoomResetBtn) zoomResetBtn.disabled = !enabled;
     Object.values(filterButtons).forEach(btn => {
         if (btn) btn.disabled = !enabled;
     });
@@ -149,6 +152,45 @@ function makePreviewClone(img, maxDim = 320) {
     return spatial.scaleImage(img, scale, scale, 'nearest');
 }
 
+
+// ===============================================================================
+// CONTROLE DE ZOOM DA IMAGEM PRINCIPAL
+// ===============================================================================
+
+let currentZoom = 1.0; // 1.0 = 100% (tamanho normal)
+const ZOOM_MIN = 0.1;
+const ZOOM_MAX = 10.0;
+const ZOOM_STEP = 0.15;
+
+const zoomOutBtn = document.getElementById("zoom-out");
+const zoomInBtn = document.getElementById("zoom-in");
+const zoomResetBtn = document.getElementById("zoom-reset");
+const zoomLevelEl = document.getElementById("zoom-level");
+
+function applyZoom(newZoom) {
+    currentZoom = Math.max(ZOOM_MIN, Math.min(ZOOM_MAX, Math.round(newZoom * 100) / 100));
+    if (zoomLevelEl) zoomLevelEl.textContent = `${Math.round(currentZoom * 100)}%`;
+    if (canvasContainer) {
+        canvasContainer.style.transform = `scale(${currentZoom})`;
+        canvasContainer.style.transformOrigin = "center center";
+    }
+}
+
+if (zoomOutBtn) zoomOutBtn.addEventListener("click", () => applyZoom(currentZoom - ZOOM_STEP));
+if (zoomInBtn) zoomInBtn.addEventListener("click", () => applyZoom(currentZoom + ZOOM_STEP));
+if (zoomResetBtn) zoomResetBtn.addEventListener("click", () => applyZoom(1.0));
+
+// Zoom interativo pelo scroll do mouse sobre a área da imagem
+if (canvasArea) {
+    canvasArea.addEventListener("wheel", (e) => {
+        if (!currentImage) return;
+        if (!e.ctrlKey && !e.metaKey) return; // Zoom com scroll somente se segurar Ctrl ou Meta
+        e.preventDefault();
+        const delta = e.deltaY < 0 ? ZOOM_STEP : -ZOOM_STEP;
+        applyZoom(currentZoom + delta);
+    }, { passive: false });
+}
+
 // Carregamento de imagem do disco
 imgInput.addEventListener("change", async (e) => {
     const file = e.target.files && e.target.files[0];
@@ -167,6 +209,7 @@ imgInput.addEventListener("change", async (e) => {
         previewImage = makePreviewClone(originalImage, 320);
         layers = [];
         layerIdCounter = 1;
+        applyZoom(1.0);
 
         setControlsEnabled(true);
         await updateDisplay();
@@ -726,13 +769,13 @@ filterButtons.negative.addEventListener("click", () => {
         title: "Negativo (Inversão)",
         bodyHtml: `
             <div class="fw-preview"><img id="fw-prev-img" alt="preview"></div>
-            <p style="color: var(--text-muted); font-size: 11px;">Inverte os valores dos canais R, G e B (s = 255 - r).</p>
+            
         `,
         onInit: (win) => {
             async function updatePreview() {
                 const prev = makePreviewClone(currentImage, 240);
-                await spatial.inversion(prev);
-                win.querySelector("#fw-prev-img").src = await imageToDataUrl(prev);
+                const res = await spatial.inversion(prev);
+                win.querySelector("#fw-prev-img").src = await imageToDataUrl(res);
             }
             win.refresh = updatePreview;
             updatePreview();
@@ -860,7 +903,7 @@ filterButtons.gama.addEventListener("click", () => {
             <div class="fw-curve">
                 <canvas id="gamma-canvas" width="200" height="200"></canvas>
             </div>
-            <span class="fw-curve-hint">s = c · r<sup>γ</sup> — clique ou toque e arraste a curva</span>
+            
             <div class="fw-controls">
                 <div class="fw-control-header">
                     <label>Gama (γ)</label>
@@ -1586,7 +1629,7 @@ filterButtons.sobelMag.addEventListener("click", () => {
         title: "Magnitude do Gradiente (Sobel)",
         bodyHtml: `
             <div class="fw-preview"><img id="fw-prev-img" alt="preview"></div>
-            <p style="color: var(--text-muted); font-size: 11px;">M = √(Gx² + Gy²), com normalização de contraste.</p>
+            
         `,
         onInit: (win) => {
             async function updatePreview() {
@@ -1917,7 +1960,7 @@ if (toolRotate) {
                     const normY = pivCanvasY / layout.outH;
                     marker.style.left = `${r.left + normX * r.width}px`;
                     marker.style.top = `${r.top + normY * r.height}px`;
-                    readout.textContent = `Pivô: (${pivotX}, ${pivotY}) px — Canvas: ${Math.round(layout.outW / pScale)}×${Math.round(layout.outH / pScale)} px`;
+                    readout.textContent = `Pivô: (${pivotX}, ${pivotY}) px`;
                 }
 
                 async function updatePreview() {
@@ -2229,7 +2272,7 @@ if (filterButtons.colorProcessing) {
 
                 function renderTabControls() {
                     if (selectedTab === "sepia") {
-                        content.innerHTML = `<p style="font-size: 11px; color: var(--text-muted);">Aplica matriz de pigmentação clássica estilo fotografia envelhecida.</p>`;
+                        content.innerHTML = ``;
                     } else if (selectedTab === "grayscale") {
                         content.innerHTML = `
                             <div class="fw-radio-row">
