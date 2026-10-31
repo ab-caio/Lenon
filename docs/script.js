@@ -1906,18 +1906,18 @@ if (toolRotate) {
                     return { left: ir.left - wr.left, top: ir.top - wr.top, width: ir.width, height: ir.height };
                 }
 
-                // O pivô é um ponto fixo da rotação: sua posição na imagem rotacionada é (pivô - origem do canvas)
+                // O pivô (pivotX, pivotY) é o ponto fixo invariante no canvas da imagem
                 function placeMarker() {
-                    if (!layout) return;
                     const r = shownRect();
                     if (!r.width || !r.height) return;
-                    marker.style.left = `${r.left + ((pivotX * pScale - layout.originX) / layout.outW) * r.width}px`;
-                    marker.style.top = `${r.top + ((pivotY * pScale - layout.originY) / layout.outH) * r.height}px`;
-                    readout.textContent = `Pivô: (${pivotX}, ${pivotY}) px — canvas ${Math.round(layout.outW / pScale)}×${Math.round(layout.outH / pScale)} px`;
+                    const normX = pivotX / (currentImage.bitmap.width - 1);
+                    const normY = pivotY / (currentImage.bitmap.height - 1);
+                    marker.style.left = `${r.left + normX * r.width}px`;
+                    marker.style.top = `${r.top + normY * r.height}px`;
+                    readout.textContent = `Pivô: (${pivotX}, ${pivotY}) px — Imagem: ${currentImage.bitmap.width}×${currentImage.bitmap.height} px`;
                 }
 
                 async function updatePreview() {
-                    // O pivô é guardado em coordenadas da imagem; mantém dentro dela se o tamanho mudou
                     pivotX = Math.max(0, Math.min(pivotX, currentImage.bitmap.width - 1));
                     pivotY = Math.max(0, Math.min(pivotY, currentImage.bitmap.height - 1));
                     const mine = ++previewToken;
@@ -1951,32 +1951,29 @@ if (toolRotate) {
                     });
                 });
 
-                // Arrastar o marcador: o ponto solto na imagem rotacionada vira o novo pivô.
-                // Pela geometria, posição_no_canvas = R·pivô − M (M constante), logo pivô = R⁻¹·(posição + M).
+                // Atualiza a posição do pivô diretamente a partir do clique ou arraste do usuário
                 function pivotFromPointer(e) {
                     const r = shownRect();
                     const wr = wrap.getBoundingClientRect();
                     const fx = Math.max(0, Math.min(1, (e.clientX - wr.left - r.left) / r.width));
                     const fy = Math.max(0, Math.min(1, (e.clientY - wr.top - r.top) / r.height));
-                    const qx = fx * layout.outW;
-                    const qy = fy * layout.outH;
 
-                    const rad = (angle * Math.PI) / 180;
-                    const c = Math.cos(rad);
-                    const s = Math.sin(rad);
-                    const px = pivotX * pScale;
-                    const py = pivotY * pScale;
-                    const mx = layout.originX - px + (c * px - s * py);
-                    const my = layout.originY - py + (s * px + c * py);
-                    const vx = qx + mx;
-                    const vy = qy + my;
-
-                    pivotX = Math.round((c * vx + s * vy) / pScale);
-                    pivotY = Math.round((-s * vx + c * vy) / pScale);
+                    pivotX = Math.round(fx * (currentImage.bitmap.width - 1));
+                    pivotY = Math.round(fy * (currentImage.bitmap.height - 1));
                     updatePreview();
                 }
 
                 let draggingPivot = false;
+
+                function onPointerDown(e) {
+                    e.preventDefault();
+                    draggingPivot = true;
+                    wrap.setPointerCapture(e.pointerId);
+                    marker.classList.add("dragging");
+                    pivotFromPointer(e);
+                }
+
+                wrap.addEventListener("pointerdown", onPointerDown);
                 marker.addEventListener("pointerdown", (e) => {
                     e.preventDefault();
                     e.stopPropagation();
@@ -1984,13 +1981,19 @@ if (toolRotate) {
                     marker.setPointerCapture(e.pointerId);
                     marker.classList.add("dragging");
                 });
-                marker.addEventListener("pointermove", (e) => {
-                    if (draggingPivot && layout) pivotFromPointer(e);
-                });
+
+                const onPointerMove = (e) => {
+                    if (draggingPivot) pivotFromPointer(e);
+                };
+                wrap.addEventListener("pointermove", onPointerMove);
+                marker.addEventListener("pointermove", onPointerMove);
+
                 const stopPivot = () => {
                     draggingPivot = false;
                     marker.classList.remove("dragging");
                 };
+                wrap.addEventListener("pointerup", stopPivot);
+                wrap.addEventListener("pointercancel", stopPivot);
                 marker.addEventListener("pointerup", stopPivot);
                 marker.addEventListener("pointercancel", stopPivot);
 

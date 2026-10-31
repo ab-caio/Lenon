@@ -651,42 +651,19 @@ export function scaleImage(img, scaleX, scaleY = scaleX, interpolation = 'neares
     return output;
 }
 
-// Geometria da rotação: tamanho do canvas que contém a imagem inteira rotacionada e a origem
-// desse canvas no plano do pivô (coordenadas em que o pixel i tem centro em i).
+// Geometria da rotação: dimensões e origem do canvas da rotação
 export function getRotationLayout(width, height, angleDegrees, pivotX, pivotY) {
-    const rad = (angleDegrees * Math.PI) / 180;
-    const cosA = Math.cos(rad);
-    const sinA = Math.sin(rad);
-
-    // Os 4 cantos da imagem (bordas dos pixels: de -0.5 a largura-0.5) após a rotação em torno do pivô
-    let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
-    for (const [cx, cy] of [[-0.5, -0.5], [width - 0.5, -0.5], [-0.5, height - 0.5], [width - 0.5, height - 0.5]]) {
-        const dx = cx - pivotX;
-        const dy = cy - pivotY;
-        const rx = cosA * dx - sinA * dy + pivotX;
-        const ry = sinA * dx + cosA * dy + pivotY;
-        if (rx < minX) minX = rx;
-        if (rx > maxX) maxX = rx;
-        if (ry < minY) minY = ry;
-        if (ry > maxY) maxY = ry;
-    }
-
-    // Maior extensão horizontal e vertical da imagem rotacionada (1e-9 absorve ruído de ponto flutuante)
-    const outW = Math.max(1, Math.ceil(maxX - minX - 1e-9));
-    const outH = Math.max(1, Math.ceil(maxY - minY - 1e-9));
-
-    // Origem do canvas, com a folga distribuída igualmente nos dois lados
     return {
-        outW,
-        outH,
-        originX: minX - (outW - (maxX - minX)) / 2,
-        originY: minY - (outH - (maxY - minY)) / 2
+        outW: width,
+        outH: height,
+        originX: 0,
+        originY: 0
     };
 }
 
 export function rotateImage(img, angleDegrees, pivotX = null, pivotY = null, interpolation = 'nearest') {
     // Rotação espacial (ângulo positivo = sentido horário) com pivô e interpolação.
-    // O canvas de saída é ampliado para conter a imagem inteira rotacionada (nunca corta).
+    // O pivô (px, py) atua como o centro invariante da transformação.
     const width = img.bitmap.width;
     const height = img.bitmap.height;
     const src = img.bitmap.data;
@@ -698,21 +675,21 @@ export function rotateImage(img, angleDegrees, pivotX = null, pivotY = null, int
     const cosA = Math.cos(rad);
     const sinA = Math.sin(rad);
 
-    const { outW, outH, originX, originY } = getRotationLayout(width, height, angleDegrees, px, py);
-
-    const output = createImage(outW, outH);
+    const output = createImage(width, height);
     if (!output || !output.bitmap || !output.bitmap.data) {
         throw new Error("Falha ao alocar buffer para a nova imagem rotacionada.");
     }
     const dst = output.bitmap.data;
 
-    for (let y = 0; y < outH; ++y) {
-        for (let x = 0; x < outW; ++x) {
-            const dstIdx = (y * outW + x) * 4;
+    for (let y = 0; y < height; ++y) {
+        for (let x = 0; x < width; ++x) {
+            const dstIdx = (y * width + x) * 4;
 
-            // Centro do pixel de saída no plano do pivô, mapeado de volta para a imagem original
-            const dx = originX + x + 0.5 - px;
-            const dy = originY + y + 0.5 - py;
+            // Mapeamento reverso puro em torno do pivô (px, py):
+            // srcX = cos(rad) * (x - px) + sin(rad) * (y - py) + px
+            // srcY = -sin(rad) * (x - px) + cos(rad) * (y - py) + py
+            const dx = x - px;
+            const dy = y - py;
             const srcX = cosA * dx + sinA * dy + px;
             const srcY = -sinA * dx + cosA * dy + py;
 
