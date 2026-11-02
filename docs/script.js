@@ -812,8 +812,8 @@ filterButtons.threshold.addEventListener("click", () => {
 
             async function updatePreview() {
                 const prev = makePreviewClone(currentImage, 240);
-                await spatial.threshold(prev, currentLimit);
-                prevImg.src = await imageToDataUrl(prev);
+                const res = await spatial.threshold(prev, currentLimit);
+                prevImg.src = await imageToDataUrl(res);
             }
 
             range.addEventListener("input", (e) => {
@@ -863,8 +863,8 @@ filterButtons.brightness.addEventListener("click", () => {
 
             async function updatePreview() {
                 const prev = makePreviewClone(currentImage, 240);
-                await spatial.brightness(prev, currentVal);
-                prevImg.src = await imageToDataUrl(prev);
+                const res = await spatial.brightness(prev, currentVal);
+                prevImg.src = await imageToDataUrl(res);
             }
 
             range.addEventListener("input", (e) => {
@@ -950,8 +950,8 @@ filterButtons.gama.addEventListener("click", () => {
                 drawCurve();
                 const mine = ++previewToken;
                 const prev = makePreviewClone(currentImage, 240);
-                await spatial.gammaCorrection(prev, gamma, constant);
-                const url = await imageToDataUrl(prev);
+                const res = await spatial.gammaCorrection(prev, gamma, constant);
+                const url = await imageToDataUrl(res);
                 if (mine === previewToken) prevImg.src = url;
             }
             win.refresh = updatePreview;
@@ -1123,8 +1123,8 @@ filterButtons.linear.addEventListener("click", () => {
             async function updatePreview() {
                 const mine = ++previewToken;
                 const prev = makePreviewClone(currentImage, 240);
-                await spatial.pieceWise(prev, rPoints, sPoints);
-                const url = await imageToDataUrl(prev);
+                const res = await spatial.pieceWise(prev, rPoints, sPoints);
+                const url = await imageToDataUrl(res);
                 if (mine === previewToken) prevImg.src = url;
             }
             win.refresh = updatePreview;
