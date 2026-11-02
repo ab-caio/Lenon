@@ -689,15 +689,16 @@ export function scaleImage(img, scaleX, scaleY = scaleX, interpolation = 'neares
     return output;
 }
 
-export function getRotationLayout(width, height, angleDegrees, pivotX = null, pivotY = null) {
-    const px = pivotX != null ? pivotX : (width - 1) / 2;
-    const py = pivotY != null ? pivotY : (height - 1) / 2;
-
+// Limites (em coordenadas da imagem original, bordas de pixel) ocupados pela imagem rotacionada
+// em torno de cada pivô informado, unidos ao quadro original. Manter o quadro original no layout
+// é o que faz o pivô ter efeito visível: sem uma referência fixa, o recorte justo ao redor da
+// imagem girada descartaria a posição absoluta e qualquer pivô pareceria girar em torno do centro.
+function computeRotationBounds(width, height, angleDegrees, pivots) {
     const rad = (angleDegrees * Math.PI) / 180;
     const cosA = Math.cos(rad);
     const sinA = Math.sin(rad);
 
-    // Cantos nos centros dos pixels das extremidades [-0.5, dim - 0.5]
+    // Cantos nas bordas dos pixels das extremidades [-0.5, dim - 0.5]
     const corners = [
         [-0.5, -0.5],
         [width - 0.5, -0.5],
@@ -705,33 +706,44 @@ export function getRotationLayout(width, height, angleDegrees, pivotX = null, pi
         [width - 0.5, height - 0.5]
     ];
 
-    let minX = Infinity, maxX = -Infinity, minY = Infinity, maxY = -Infinity;
-    for (const [cx, cy] of corners) {
-        const rx = cosA * (cx - px) - sinA * (cy - py) + px;
-        const ry = sinA * (cx - px) + cosA * (cy - py) + py;
-        if (rx < minX) minX = rx;
-        if (rx > maxX) maxX = rx;
-        if (ry < minY) minY = ry;
-        if (ry > maxY) maxY = ry;
+    let minX = -0.5, maxX = width - 0.5, minY = -0.5, maxY = height - 0.5;
+    for (const [px, py] of pivots) {
+        for (const [cx, cy] of corners) {
+            const rx = cosA * (cx - px) - sinA * (cy - py) + px;
+            const ry = sinA * (cx - px) + cosA * (cy - py) + py;
+            if (rx < minX) minX = rx;
+            if (rx > maxX) maxX = rx;
+            if (ry < minY) minY = ry;
+            if (ry > maxY) maxY = ry;
+        }
     }
+    return { minX, maxX, minY, maxY };
+}
 
+function layoutFromBounds({ minX, maxX, minY, maxY }) {
     const EPS = 1e-7;
     const outW = Math.max(1, Math.ceil(maxX - minX - EPS));
     const outH = Math.max(1, Math.ceil(maxY - minY - EPS));
     const padX = -(minX + 0.5);
     const padY = -(minY + 0.5);
-
-    return {
-        outW,
-        outH,
-        padX,
-        padY,
-        originX: -padX,
-        originY: -padY
-    };
+    return { outW, outH, padX, padY, originX: -padX, originY: -padY };
 }
 
-export function rotateImage(img, angleDegrees, pivotX = null, pivotY = null, interpolation = 'nearest') {
+export function getRotationLayout(width, height, angleDegrees, pivotX = null, pivotY = null) {
+    // Canvas de saída = união do quadro original com a imagem rotacionada em torno do pivô
+    const px = pivotX != null ? pivotX : (width - 1) / 2;
+    const py = pivotY != null ? pivotY : (height - 1) / 2;
+    return layoutFromBounds(computeRotationBounds(width, height, angleDegrees, [[px, py]]));
+}
+
+export function getRotationStage(width, height, angleDegrees) {
+    // Layout estável que independe do pivô: cobre a imagem girada para qualquer pivô dentro do quadro.
+    // Usado na prévia interativa, para que o canvas não mude de tamanho/posição enquanto o pivô é arrastado.
+    const pivots = [[0, 0], [width - 1, 0], [0, height - 1], [width - 1, height - 1]];
+    return layoutFromBounds(computeRotationBounds(width, height, angleDegrees, pivots));
+}
+
+export function rotateImage(img, angleDegrees, pivotX = null, pivotY = null, interpolation = 'nearest', layout = null) {
     // Rotação espacial com pivô arbitrário e canvas ampliado e centralizado para não cortar extremidades
     const width = img.bitmap.width;
     const height = img.bitmap.height;
@@ -744,7 +756,7 @@ export function rotateImage(img, angleDegrees, pivotX = null, pivotY = null, int
     const cosA = Math.cos(rad);
     const sinA = Math.sin(rad);
 
-    const { outW, outH, padX, padY } = getRotationLayout(width, height, angleDegrees, px, py);
+    const { outW, outH, padX, padY } = layout || getRotationLayout(width, height, angleDegrees, px, py);
 
     const output = createImage(outW, outH);
     if (!output || !output.bitmap || !output.bitmap.data) {

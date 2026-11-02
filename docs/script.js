@@ -1,9 +1,8 @@
-
-import * as spatial from "./modules/spatial.js?v=6";
+import * as spatial from "./modules/spatial.js?v=7";
 import * as frequency from "./modules/frequency.js?v=6";
 import { createImage, cloneImage, clamp, EXPORT_FORMATS, encodeImage } from "./modules/auxiliary.js?v=6";
 
-if (typeof spatial.getRotationLayout !== "function") {
+if (typeof spatial.getRotationStage !== "function") {
     alert("modules/spatial.js está desatualizado (sem a rotação com canvas ampliado). Substitua o arquivo e recarregue com Ctrl+F5.");
 }
 
@@ -1954,8 +1953,8 @@ if (toolRotate) {
                     if (!layout) return;
                     const r = shownRect();
                     if (!r.width || !r.height) return;
-                    const pivCanvasX = (pivotX * pScale) + layout.padX;
-                    const pivCanvasY = (pivotY * pScale) + layout.padY;
+                    const pivCanvasX = (pivotX * pScale) + layout.padX + 0.5;
+                    const pivCanvasY = (pivotY * pScale) + layout.padY + 0.5;
                     const normX = pivCanvasX / layout.outW;
                     const normY = pivCanvasY / layout.outH;
                     marker.style.left = `${r.left + normX * r.width}px`;
@@ -1969,8 +1968,9 @@ if (toolRotate) {
                     const mine = ++previewToken;
                     const prev = makePreviewClone(currentImage, 240);
                     pScale = prev.bitmap.width / currentImage.bitmap.width;
-                    layout = spatial.getRotationLayout(prev.bitmap.width, prev.bitmap.height, angle, pivotX * pScale, pivotY * pScale);
-                    const res = spatial.rotateImage(prev, angle, pivotX * pScale, pivotY * pScale, interpolation);
+                    // Palco estável (independe do pivô): evita que o canvas mude enquanto o pivô é arrastado
+                    layout = spatial.getRotationStage(prev.bitmap.width, prev.bitmap.height, angle);
+                    const res = spatial.rotateImage(prev, angle, pivotX * pScale, pivotY * pScale, interpolation, layout);
                     const url = await imageToDataUrl(res);
                     if (mine !== previewToken) return;
                     prevImg.onload = placeMarker;
@@ -2008,8 +2008,8 @@ if (toolRotate) {
                     const canvasX = fx * layout.outW;
                     const canvasY = fy * layout.outH;
 
-                    const newPx = Math.round((canvasX - layout.padX) / pScale);
-                    const newPy = Math.round((canvasY - layout.padY) / pScale);
+                    const newPx = Math.round((canvasX - 0.5 - layout.padX) / pScale);
+                    const newPy = Math.round((canvasY - 0.5 - layout.padY) / pScale);
 
                     pivotX = Math.max(0, Math.min(currentImage.bitmap.width - 1, newPx));
                     pivotY = Math.max(0, Math.min(currentImage.bitmap.height - 1, newPy));
