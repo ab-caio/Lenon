@@ -25,7 +25,21 @@ O processamento de imagens coloridas aborda a manipulação nos espaços de core
 
 ---
 
-## 2. Função `convertToGrayscale` (Conversão para Escala de Cinza)
+## 2. Função `extractHsiPlane` e Ferramenta `RGB ↔ HSI`
+
+### Funcionamento em Blocos
+
+* **Bloco 1: Decomposição em Planos $H$, $S$ e $I$**
+  Para cada pixel da imagem, calcula $(H, S, I)$ através de `rgbToHsi`.
+  - Plano $H$ (Matiz): mapeia $H \in [0^\circ, 360^\circ]$ linearmente para escala de cinza $[0, 255]$ via $\text{round}((H / 360) \times 255)$.
+  - Plano $S$ (Saturação): projeta $S \in [0, 1]$ em $[0, 255]$ via $\text{round}(S \times 255)$.
+  - Plano $I$ (Intensidade): projeta $I \in [0, 1]$ em $[0, 255]$ via $\text{round}(I \times 255)$.
+* **Bloco 2: Ferramenta Interativa de Conversão**
+  Permite conversão bidirecional em tempo real entre $(R, G, B)$ e $(H, S, I)$ com sliders e inputs numéricos sincronizados, color picker, swatch visual e ferramenta de conta-gotas (*eyedropper*) para inspecionar pixels diretamente na imagem.
+
+---
+
+## 3. Função `convertToGrayscale` (Conversão para Escala de Cinza)
 
 ### Funcionamento em Blocos
 
@@ -37,7 +51,7 @@ O processamento de imagens coloridas aborda a manipulação nos espaços de core
 
 ---
 
-## 3. Função `colorInversion` (Negativo Colorido)
+## 4. Função `colorInversion` (Negativo Colorido)
 
 ### Funcionamento em Blocos
 
@@ -46,7 +60,7 @@ O processamento de imagens coloridas aborda a manipulação nos espaços de core
 
 ---
 
-## 4. Função `chromaKey` (Substituição de Fundo / Croma-Chave)
+## 5. Função `chromaKey` (Substituição de Fundo / Croma-Chave)
 
 ### Funcionamento em Blocos
 
@@ -58,7 +72,7 @@ O processamento de imagens coloridas aborda a manipulação nos espaços de core
 
 ---
 
-## 5. Função `adjustHSI` (Ajuste de Matiz, Saturação e Intensidade)
+## 6. Função `adjustHSI` (Ajuste de Matiz, Saturação e Intensidade)
 
 ### Funcionamento em Blocos
 
@@ -69,7 +83,7 @@ O processamento de imagens coloridas aborda a manipulação nos espaços de core
 
 ---
 
-## 6. Função `adjustColorChannels` (Ajuste de Canais Complementares)
+## 7. Função `adjustColorChannels` (Ajuste de Canais Complementares)
 
 ### Funcionamento em Blocos
 
@@ -78,7 +92,7 @@ O processamento de imagens coloridas aborda a manipulação nos espaços de core
 
 ---
 
-## 7. Função `sepia` (Efeito Fotográfico Sépia)
+## 8. Função `sepia` (Efeito Fotográfico Sépia)
 
 ### Funcionamento em Blocos
 

@@ -37,7 +37,14 @@ A Transformada de Fourier decompõe uma imagem espacial em suas componentes seno
 
 ### Funcionamento em Blocos
 
-* **Bloco 1: Atenuação ou Bloqueio de Frequências**
+* **Bloco 1: Atenuação, Bloqueio e Restauração de Frequências (Pincel Suave)**
+  A ferramenta de desenho no espectro disponibiliza:
+  - **Preto ($0.0$ / corte total):** zera componentes de frequência selecionadas.
+  - **Cinza ($0.0 < H(u, v) < 1.0$ / atenuação):** atenua a amplitude espectral suavemente.
+  - **Branco ($1.0$ / passagem e restauração):** restaura frequências previamente atenuadas.
+  - **Pincel Suave (atenuação radial):** aplica decaimento cosseno $\alpha(d) = \cos\left(\frac{d}{R} \frac{\pi}{2}\right)$ do centro para a borda do raio do pincel, garantindo transições suaves e minimizando artefatos de ringing (anéis de Gibbs).
+
+
   Recebe uma máscara de ponderação $H(u, v)$ (definida por função analítica, array ou imagem desenhada).
   Multiplica os coeficientes complexos correspondentes:
   $$R'(u, v) = R(u, v) \cdot H(u, v), \quad I'(u, v) = I(u, v) \cdot H(u, v)$$

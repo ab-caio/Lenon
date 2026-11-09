@@ -1,7 +1,7 @@
 import { clamp, createImage, cloneImage } from "./auxiliary.js";
 
 // ===============================================================================
-// 1. TRANSFORMAÇÕES DE INTENSIDADE E ESTEGANOGRAFIA NO DOMÍNIO ESPACIAL
+// 1. TRANSFORMAÇÕES DE INTENSIDADE E ESTEGANOGRAFIA
 // ===============================================================================
 
 export async function inversion(img) {
@@ -91,8 +91,8 @@ export async function gammaCorrection(img, gamma = 1.0, constant = 1) {
     return output;
 }
 
-export async function pieceWise(img, rPoints, sPoints) {
-    // Transformação linear segmentada por partes
+function pieceWiseLut(rPoints, sPoints) {
+    // Tabela de consulta de uma função linear segmentada por partes
     if (rPoints.length !== sPoints.length || rPoints.length < 2) {
         throw new Error("Mapping error: rPoints and sPoints must have the same length >= 2");
     }
@@ -112,13 +112,35 @@ export async function pieceWise(img, rPoints, sPoints) {
         }
         lut[i] = clamp(value);
     }
+    return lut;
+}
 
+export async function pieceWise(img, curves, mode = "rgb") {
+    // Função linear por partes. curves = { r, g, b, luminance }, cada uma { rPoints, sPoints }
+    // mode "rgb": uma função própria para cada canal | mode "luminance": uma função só na luminância Y
     const output = cloneImage(img);
     const data = output.bitmap.data;
+
+    if (mode === "luminance") {
+        // Y' = T(Y); somar (Y' - Y) aos três canais equivale a trocar só o Y no YIQ (I e Q intactos)
+        const lut = pieceWiseLut(curves.luminance.rPoints, curves.luminance.sPoints);
+        output.scan(0, 0, output.bitmap.width, output.bitmap.height, function(x, y, idx) {
+            const luma = Math.round(0.299 * data[idx + 0] + 0.587 * data[idx + 1] + 0.114 * data[idx + 2]);
+            const delta = lut[luma] - luma;
+            data[idx + 0] = clamp(data[idx + 0] + delta);
+            data[idx + 1] = clamp(data[idx + 1] + delta);
+            data[idx + 2] = clamp(data[idx + 2] + delta);
+        });
+        return output;
+    }
+
+    const lutR = pieceWiseLut(curves.r.rPoints, curves.r.sPoints);
+    const lutG = pieceWiseLut(curves.g.rPoints, curves.g.sPoints);
+    const lutB = pieceWiseLut(curves.b.rPoints, curves.b.sPoints);
     output.scan(0, 0, output.bitmap.width, output.bitmap.height, function(x, y, idx) {
-        data[idx + 0] = lut[data[idx + 0]];
-        data[idx + 1] = lut[data[idx + 1]];
-        data[idx + 2] = lut[data[idx + 2]];
+        data[idx + 0] = lutR[data[idx + 0]];
+        data[idx + 1] = lutG[data[idx + 1]];
+        data[idx + 2] = lutB[data[idx + 2]];
     });
     return output;
 }
@@ -413,7 +435,7 @@ export function gaussianBlur(img, size = 3, sigma = 1.0) {
 
 export function medianFilter(img, size = 3) {
     // Filtragem estatística não-linear pela mediana da vizinhança
-    if (size % 2 === 0 || size < 3) throw new Error("Size must be an odd integer >= 3");
+    if (size % 2 === 0 || size < 3 || size > 9) throw new Error("Size must be an odd integer between 3 and 9");
     const half = Math.floor(size / 2);
     const width = img.bitmap.width;
     const height = img.bitmap.height;
@@ -618,7 +640,7 @@ export function sobelMagnitude(img, options = {}) {
 // ===============================================================================
 
 export function scaleImage(img, scaleX, scaleY = scaleX, interpolation = 'nearest') {
-    // Redimensionamento espacial por mapeamento reverso (backward mapping)
+    // Redimensionamento espacial por mapeamento reverso
     if (typeof scaleY === 'string') {
         interpolation = scaleY;
         scaleY = scaleX;
@@ -689,10 +711,6 @@ export function scaleImage(img, scaleX, scaleY = scaleX, interpolation = 'neares
     return output;
 }
 
-// Limites (em coordenadas da imagem original, bordas de pixel) ocupados pela imagem rotacionada
-// em torno de cada pivô informado, unidos ao quadro original. Manter o quadro original no layout
-// é o que faz o pivô ter efeito visível: sem uma referência fixa, o recorte justo ao redor da
-// imagem girada descartaria a posição absoluta e qualquer pivô pareceria girar em torno do centro.
 function computeRotationBounds(width, height, angleDegrees, pivots) {
     const rad = (angleDegrees * Math.PI) / 180;
     const cosA = Math.cos(rad);
@@ -730,21 +748,17 @@ function layoutFromBounds({ minX, maxX, minY, maxY }) {
 }
 
 export function getRotationLayout(width, height, angleDegrees, pivotX = null, pivotY = null) {
-    // Canvas de saída = união do quadro original com a imagem rotacionada em torno do pivô
     const px = pivotX != null ? pivotX : (width - 1) / 2;
     const py = pivotY != null ? pivotY : (height - 1) / 2;
     return layoutFromBounds(computeRotationBounds(width, height, angleDegrees, [[px, py]]));
 }
 
 export function getRotationStage(width, height, angleDegrees) {
-    // Layout estável que independe do pivô: cobre a imagem girada para qualquer pivô dentro do quadro.
-    // Usado na prévia interativa, para que o canvas não mude de tamanho/posição enquanto o pivô é arrastado.
     const pivots = [[0, 0], [width - 1, 0], [0, height - 1], [width - 1, height - 1]];
     return layoutFromBounds(computeRotationBounds(width, height, angleDegrees, pivots));
 }
 
 export function rotateImage(img, angleDegrees, pivotX = null, pivotY = null, interpolation = 'nearest', layout = null) {
-    // Rotação espacial com pivô arbitrário e canvas ampliado e centralizado para não cortar extremidades
     const width = img.bitmap.width;
     const height = img.bitmap.height;
     const src = img.bitmap.data;
@@ -768,7 +782,7 @@ export function rotateImage(img, angleDegrees, pivotX = null, pivotY = null, int
         for (let x = 0; x < outW; ++x) {
             const dstIdx = (y * outW + x) * 4;
 
-            // Mapeamento reverso em torno do pivô (px, py) considerando a margem do canvas:
+            // Mapeamento reverso em torno do pivô (px, py) considerando a margem do canvas
             const dx = (x - padX) - px;
             const dy = (y - padY) - py;
             const srcX = cosA * dx + sinA * dy + px;
@@ -851,6 +865,33 @@ export function rgbToHsi(r, g, b) {
     return { h, s: saturation, i: intensity };
 }
 
+export function extractHsiPlane(img, plane = 'i') {
+    // Extração isolada de um plano do espaço HSI (H: 0-360 mapeado para 0-255, S: 0-255, I: 0-255)
+    const output = cloneImage(img);
+    const data = output.bitmap.data;
+
+    for (let i = 0; i < data.length; i += 4) {
+        const r = data[i + 0];
+        const g = data[i + 1];
+        const b = data[i + 2];
+        const hsi = rgbToHsi(r, g, b);
+
+        let val = 0;
+        if (plane === 'h') {
+            val = clamp(Math.round((hsi.h / 360) * 255));
+        } else if (plane === 's') {
+            val = clamp(Math.round(hsi.s * 255));
+        } else {
+            val = clamp(Math.round(hsi.i * 255));
+        }
+
+        data[i + 0] = val;
+        data[i + 1] = val;
+        data[i + 2] = val;
+    }
+    return output;
+}
+
 export function hsiToRgb(h, s, i) {
     // Conversão de coordenadas de cores HSI -> RGB por setores
     h = ((h % 360) + 360) % 360;
@@ -926,6 +967,10 @@ export function colorInversion(img) {
 }
 
 export function chromaKey(fgImg, bgImg, targetColor = [0, 255, 0], tolerance = 50) {
+    if (!fgImg || !fgImg.bitmap) return fgImg;
+    const output = cloneImage(fgImg);
+    if (!bgImg || !bgImg.bitmap) return output;
+
     // Croma-chave por distância esférica euclidiana no espaço RGB
     const width = fgImg.bitmap.width;
     const height = fgImg.bitmap.height;
@@ -934,13 +979,27 @@ export function chromaKey(fgImg, bgImg, targetColor = [0, 255, 0], tolerance = 5
     const bgWidth = bgImg.bitmap.width;
     const bgHeight = bgImg.bitmap.height;
 
-    const output = cloneImage(fgImg);
     const dst = output.bitmap.data;
 
-    const [tr, tg, tb] = targetColor;
-    const tolSq = tolerance * tolerance;
+    let tr = 0, tg = 255, tb = 0;
+    if (Array.isArray(targetColor)) {
+        tr = Number(targetColor[0]) || 0;
+        tg = Number(targetColor[1]) || 0;
+        tb = Number(targetColor[2]) || 0;
+    } else if (typeof targetColor === "string") {
+        const hex = targetColor.replace("#", "");
+        if (hex.length === 6) {
+            tr = parseInt(hex.slice(0, 2), 16);
+            tg = parseInt(hex.slice(2, 4), 16);
+            tb = parseInt(hex.slice(4, 6), 16);
+        }
+    }
+
+    const tol = Number(tolerance) || 0;
+    const tolSq = tol * tol;
 
     for (let y = 0; y < height; ++y) {
+        const bgY = Math.min(bgHeight - 1, Math.floor((y / height) * bgHeight));
         for (let x = 0; x < width; ++x) {
             const fgIdx = (y * width + x) * 4;
             const r = fgData[fgIdx + 0];
@@ -953,8 +1012,7 @@ export function chromaKey(fgImg, bgImg, targetColor = [0, 255, 0], tolerance = 5
             const distSq = dr * dr + dg * dg + db * db;
 
             if (distSq <= tolSq) {
-                const bgX = Math.min(bgWidth - 1, x);
-                const bgY = Math.min(bgHeight - 1, y);
+                const bgX = Math.min(bgWidth - 1, Math.floor((x / width) * bgWidth));
                 const bgIdx = (bgY * bgWidth + bgX) * 4;
 
                 dst[fgIdx + 0] = bgData[bgIdx + 0];
@@ -1010,13 +1068,17 @@ export function equalizeHistogramHSI(img) {
         histI[Math.round(hsi.i * 255)]++;
     }
 
+    // Mesma normalização do modo cinza: menor nível -> 0, maior -> 1 (sem isso o preto virava cinza médio)
     const lutI = new Float64Array(256);
     let sum = 0;
-    const factor = 1 / totalPixels;
+    let cdfMin = 0;
     for (let j = 0; j < 256; ++j) {
         sum += histI[j];
-        lutI[j] = sum * factor;
+        if (cdfMin === 0 && sum > 0) cdfMin = sum;
+        lutI[j] = totalPixels === cdfMin ? 0 : (sum - cdfMin) / (totalPixels - cdfMin);
     }
+    // Todos os pixels no mesmo nível de intensidade: não há o que equalizar
+    if (totalPixels === cdfMin) return cloneImage(img);
 
     const output = cloneImage(img);
     const dst = output.bitmap.data;

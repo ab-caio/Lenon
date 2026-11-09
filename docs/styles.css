@@ -1219,3 +1219,173 @@ width: 70px;
 ::-webkit-scrollbar-thumb:hover {
     background: #aaa;
 }
+
+
+/* Controles Chroma Key */
+.ck-presets {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: center;
+    gap: 4px;
+}
+
+.ck-preset-btn {
+    font-family: inherit;
+    font-size: 10px;
+    padding: 3px 6px;
+    border-radius: 3px;
+    cursor: pointer;
+    background: var(--btn-bg);
+    border: 1px solid var(--border-dark);
+    color: var(--text-primary);
+    transition: background 0.15s, color 0.15s;
+}
+
+.ck-preset-btn:hover {
+    background: var(--btn-hover);
+    color: var(--text-highlight);
+}
+
+.ck-preset-btn.active {
+    background: var(--btn-active);
+    color: var(--text-highlight);
+    border-color: var(--border-light);
+}
+
+
+/* ===============================================================================
+   MELHORIAS: PINCEL DE FOURIER & CONVERSÃO RGB <-> HSI
+   =============================================================================== */
+
+/* Controles do Pincel de Fourier */
+.fourier-brush-controls {
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+    margin-top: 8px;
+    padding-top: 8px;
+    border-top: 1px solid var(--border-dark);
+}
+
+.fourier-brush-btn-group {
+    display: flex;
+    gap: 4px;
+}
+
+.fourier-brush-btn {
+    flex: 1;
+    font-family: inherit;
+    font-size: 11px;
+    padding: 4px 6px;
+    background: var(--btn-bg);
+    border: 1px solid var(--border-dark);
+    color: var(--text-primary);
+    cursor: pointer;
+    border-radius: 3px;
+    transition: background 0.15s, color 0.15s;
+    text-align: center;
+}
+
+.fourier-brush-btn:hover {
+    background: var(--btn-hover);
+    color: var(--text-highlight);
+}
+
+.fourier-brush-btn.active {
+    background: var(--btn-active);
+    color: var(--text-highlight);
+    border-color: var(--border-light);
+}
+
+/* Ferramenta Conversão RGB <-> HSI */
+.rgb-hsi-container {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+}
+
+.rgb-hsi-panels {
+    display: grid;
+    grid-template-columns: 1fr auto 1fr;
+    gap: 10px;
+    align-items: center;
+}
+
+.rgb-hsi-box {
+    background: rgba(255, 255, 255, 0.03);
+    border: 1px solid var(--border-dark);
+    border-radius: 4px;
+    padding: 10px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+
+.rgb-hsi-box-title {
+    font-size: 11px;
+    font-weight: bold;
+    color: var(--text-highlight);
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    border-bottom: 1px solid var(--border-dark);
+    padding-bottom: 4px;
+    margin-bottom: 2px;
+}
+
+.rgb-hsi-arrow {
+    font-size: 20px;
+    color: var(--text-muted);
+    user-select: none;
+    text-align: center;
+}
+
+.rgb-hsi-preview-row {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 6px 10px;
+    background: rgba(0, 0, 0, 0.3);
+    border: 1px solid var(--border-dark);
+    border-radius: 4px;
+}
+
+.rgb-hsi-swatch {
+    width: 36px;
+    height: 36px;
+    border-radius: 4px;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    box-shadow: 0 0 8px rgba(0, 0, 0, 0.5);
+    flex-shrink: 0;
+}
+
+.rgb-hsi-planes-grid {
+    display: grid;
+    grid-template-columns: repeat(3, 1fr);
+    gap: 8px;
+    margin-top: 8px;
+}
+
+.rgb-hsi-plane-card {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    background: rgba(0, 0, 0, 0.25);
+    border: 1px solid var(--border-dark);
+    border-radius: 4px;
+    padding: 6px;
+    gap: 4px;
+}
+
+.rgb-hsi-plane-card img {
+    width: 100%;
+    height: 90px;
+    object-fit: contain;
+    background: #000;
+    border-radius: 2px;
+}
+
+.rgb-hsi-plane-label {
+    font-size: 10px;
+    color: var(--text-muted);
+    font-weight: 600;
+}
