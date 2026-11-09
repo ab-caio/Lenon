@@ -84,13 +84,11 @@ export function cloneImage(img) {
 }
 
 // ===============================================================================
-// EXPORTAÇÃO DE IMAGEM (PNG, JPEG, JPG, BMP)
+// EXPORTAÇÃO DE IMAGEM (PNG, JPG, BMP)
 // ===============================================================================
 
-// "jpeg" e "jpg" são o mesmo formato; só muda a extensão do arquivo
 export const EXPORT_FORMATS = {
     png:  { label: "PNG",           mime: "image/png",  ext: "png",  lossy: false, alpha: true },
-    jpeg: { label: "JPEG",          mime: "image/jpeg", ext: "jpeg", lossy: true,  alpha: false },
     jpg:  { label: "JPG",           mime: "image/jpeg", ext: "jpg",  lossy: true,  alpha: false },
     bmp:  { label: "Bitmap (BMP)",  mime: "image/bmp",  ext: "bmp",  lossy: false, alpha: false }
 };

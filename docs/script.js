@@ -224,13 +224,12 @@ imgInput.addEventListener("change", async (e) => {
     }
 });
 
-// Salvar imagem resultante (PNG, JPEG, JPG ou BMP)
+// Salvar imagem resultante (PNG, JPG ou BMP)
 saveBtn.addEventListener("click", () => {
     if (!currentImage) return;
 
     const hints = {
         png: "Sem perdas; mantém a transparência.",
-        jpeg: "Com perdas e sem transparência: áreas transparentes ficam brancas.",
         jpg: "Com perdas e sem transparência: áreas transparentes ficam brancas.",
         bmp: "Sem compressão (arquivo grande) e sem transparência: áreas transparentes ficam brancas."
     };
@@ -241,7 +240,7 @@ saveBtn.addEventListener("click", () => {
         bodyHtml: `
             <div class="fw-controls">
                 <div class="fw-control-header"><label for="save-name">Nome do arquivo</label></div>
-                <input type="text" class="fw-text" id="save-name" value="lenon_processado" autocomplete="off">
+                <input type="text" class="fw-text" id="save-name" value="newImg" autocomplete="off">
                 <div class="fw-radio-row" style="margin-top: 6px;">
                     ${Object.entries(EXPORT_FORMATS).map(([key, f]) => `
                         <label><input type="radio" name="save-format" value="${key}" ${key === "png" ? "checked" : ""}> ${f.label}</label>
@@ -249,7 +248,7 @@ saveBtn.addEventListener("click", () => {
                 </div>
                 <div id="save-quality-box" style="display: none;">
                     <div class="fw-control-header">
-                        <label for="save-quality">Qualidade JPEG</label>
+                        <label for="save-quality">Qualidade JPG</label>
                         <input type="number" class="fw-value" id="save-quality-num" min="1" max="100" value="92">
                     </div>
                     <input type="range" id="save-quality" min="1" max="100" value="92">
